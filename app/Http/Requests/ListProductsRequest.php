@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Platform;
+use App\Enums\ProductType;
 use App\Enums\Region;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -19,6 +20,18 @@ class ListProductsRequest extends FormRequest
     }
 
     /**
+     * Accept a single value (`?platform=steam`) as well as a list (`?platform[]=steam&platform[]=gog`).
+     */
+    protected function prepareForValidation(): void
+    {
+        foreach (['platform', 'region', 'type'] as $key) {
+            if (is_string($this->query($key))) {
+                $this->merge([$key => [$this->query($key)]]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -32,10 +45,27 @@ class ListProductsRequest extends FormRequest
              * @example elden ring
              */
             'search' => ['nullable', 'string', 'max:100'],
-            /** Only return products for this platform. */
-            'platform' => ['nullable', Rule::enum(Platform::class)],
-            /** Only return products for this region. */
-            'region' => ['nullable', Rule::enum(Region::class)],
+            'platform' => ['nullable', 'array'],
+            /** Only return products for any of these platforms. A single value is also accepted. Repeat the parameter to match several (`platform[]=a&platform[]=b`). */
+            'platform.*' => [Rule::enum(Platform::class)],
+            'region' => ['nullable', 'array'],
+            /** Only return products for any of these regions. A single value is also accepted. Repeat the parameter to match several (`region[]=a&region[]=b`). */
+            'region.*' => [Rule::enum(Region::class)],
+            'type' => ['nullable', 'array'],
+            /** Only return products of any of these types. A single value is also accepted. Repeat the parameter to match several (`type[]=a&type[]=b`). */
+            'type.*' => [Rule::enum(ProductType::class)],
+            /**
+             * Minimum price in cents (inclusive).
+             *
+             * @example 999
+             */
+            'min_price' => ['nullable', 'integer', 'min:0'],
+            /**
+             * Maximum price in cents (inclusive). Must not be lower than `min_price`.
+             *
+             * @example 4999
+             */
+            'max_price' => ['nullable', 'integer', 'min:0', Rule::when($this->filled('min_price'), 'gte:min_price')],
             /**
              * Number of products per page.
              *

@@ -30,6 +30,8 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use HasFactory;
 
+    public const DEFAULT_CURRENCY = 'EUR';
+
     /**
      * Get the attributes that should be cast.
      *
@@ -93,24 +95,64 @@ class Product extends Model
     }
 
     /**
-     * Scope a query to the given platform.
+     * Scope a query to any of the given platforms.
+     *
+     * @param  array<int, Platform|string>|Platform|string|null  $platforms
      */
     #[Scope]
-    protected function forPlatform(Builder $query, Platform|string|null $platform): void
+    protected function forPlatforms(Builder $query, array|Platform|string|null $platforms): void
     {
-        if ($platform !== null) {
-            $query->where('platform', $platform instanceof Platform ? $platform->value : $platform);
-        }
+        $this->whereEnumIn($query, 'platform', $platforms);
     }
 
     /**
-     * Scope a query to the given region.
+     * Scope a query to any of the given regions.
+     *
+     * @param  array<int, Region|string>|Region|string|null  $regions
      */
     #[Scope]
-    protected function forRegion(Builder $query, Region|string|null $region): void
+    protected function forRegions(Builder $query, array|Region|string|null $regions): void
     {
-        if ($region !== null) {
-            $query->where('region', $region instanceof Region ? $region->value : $region);
+        $this->whereEnumIn($query, 'region', $regions);
+    }
+
+    /**
+     * Scope a query to any of the given product types.
+     *
+     * @param  array<int, ProductType|string>|ProductType|string|null  $types
+     */
+    #[Scope]
+    protected function forTypes(Builder $query, array|ProductType|string|null $types): void
+    {
+        $this->whereEnumIn($query, 'type', $types);
+    }
+
+    /**
+     * Scope a query to products priced within the given range, in cents (inclusive).
+     */
+    #[Scope]
+    protected function priceBetween(Builder $query, ?int $min, ?int $max): void
+    {
+        $query
+            ->when($min !== null, fn (Builder $query) => $query->where('price', '>=', $min))
+            ->when($max !== null, fn (Builder $query) => $query->where('price', '<=', $max));
+    }
+
+    /**
+     * Constrain an enum column to a set of values, ignoring empty input.
+     *
+     * @param  array<int, \BackedEnum|string>|\BackedEnum|string|null  $values
+     */
+    private function whereEnumIn(Builder $query, string $column, array|\BackedEnum|string|null $values): void
+    {
+        $values = collect(is_array($values) ? $values : [$values])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->map(fn ($value) => $value instanceof \BackedEnum ? $value->value : $value)
+            ->unique()
+            ->values();
+
+        if ($values->isNotEmpty()) {
+            $query->whereIn($column, $values->all());
         }
     }
 }

@@ -2,16 +2,18 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\FormatsMoney;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Number;
 
 /**
  * @mixin Product
  */
 class ProductResource extends JsonResource
 {
+    use FormatsMoney;
+
     /**
      * Transform the resource into an array.
      *
@@ -44,11 +46,11 @@ class ProductResource extends JsonResource
                 'label' => $this->type->label(),
             ],
             /** Current selling price. */
-            'price' => $this->money($this->price),
+            'price' => $this->money($this->price, $this->currency),
             /** Price before discount, or null when the product is not discounted. */
-            'original_price' => $this->original_price === null ? null : $this->money($this->original_price),
+            'original_price' => $this->original_price === null ? null : $this->money($this->original_price, $this->currency),
             /** Cashback earned on purchase, or null when none is offered. */
-            'cashback' => $this->cashback === null ? null : $this->money($this->cashback),
+            'cashback' => $this->cashback === null ? null : $this->money($this->cashback, $this->currency),
             /**
              * Discount from `original_price` to `price`, as a whole percentage (0 when not discounted).
              *
@@ -73,29 +75,6 @@ class ProductResource extends JsonResource
              * @format date-time
              */
             'updated_at' => $this->updated_at?->toIso8601String(),
-        ];
-    }
-
-    /**
-     * Represent an amount in cents as both raw cents and a formatted string.
-     *
-     * @return array{amount: int, formatted: string}
-     */
-    private function money(int $cents): array
-    {
-        return [
-            /**
-             * Amount in minor units (cents).
-             *
-             * @example 4299
-             */
-            'amount' => $cents,
-            /**
-             * Amount formatted for display in the product currency.
-             *
-             * @example €42.99
-             */
-            'formatted' => (string) Number::currency($cents / 100, in: $this->currency, locale: 'en'),
         ];
     }
 }

@@ -12,7 +12,15 @@ class ListProducts
     /**
      * List active products, filtered and paginated.
      *
-     * @param  array{search?: string|null, platform?: string|null, region?: string|null, per_page?: int|string|null}  $filters
+     * @param  array{
+     *     search?: string|null,
+     *     platform?: list<string>|null,
+     *     region?: list<string>|null,
+     *     type?: list<string>|null,
+     *     min_price?: int|string|null,
+     *     max_price?: int|string|null,
+     *     per_page?: int|string|null,
+     * }  $filters
      * @return LengthAwarePaginator<int, Product>
      */
     public function handle(array $filters): LengthAwarePaginator
@@ -20,8 +28,13 @@ class ListProducts
         return Product::query()
             ->active()
             ->search($filters['search'] ?? null)
-            ->forPlatform($filters['platform'] ?? null)
-            ->forRegion($filters['region'] ?? null)
+            ->forPlatforms($filters['platform'] ?? null)
+            ->forRegions($filters['region'] ?? null)
+            ->forTypes($filters['type'] ?? null)
+            ->priceBetween(
+                isset($filters['min_price']) ? (int) $filters['min_price'] : null,
+                isset($filters['max_price']) ? (int) $filters['max_price'] : null,
+            )
             ->orderBy('title')
             ->orderBy('id')
             ->paginate((int) ($filters['per_page'] ?? self::DEFAULT_PER_PAGE))
