@@ -162,6 +162,55 @@ it('combines array, type and price filters', function () {
         ->assertJsonCount(2, 'data');
 });
 
+it('sorts products by title ascending by default', function () {
+    foreach (['Stardew Valley', 'Elden Ring', 'Hades II'] as $title) {
+        Product::factory()->create(['title' => $title]);
+    }
+
+    $response = $this->getJson(route('v1.products.index'))->assertOk();
+
+    expect(collect($response->json('data'))->pluck('title')->all())->toBe(['Elden Ring', 'Hades II', 'Stardew Valley']);
+});
+
+it('sorts products', function (string $sort, array $expected) {
+    Product::factory()->create(['title' => 'Elden Ring', 'price' => 4999, 'created_at' => now()->subDays(3)]);
+    Product::factory()->create(['title' => 'Stardew Valley', 'price' => 999, 'created_at' => now()->subDay()]);
+    Product::factory()->create(['title' => 'Hades II', 'price' => 2499, 'created_at' => now()->subDays(2)]);
+
+    $response = $this->getJson(route('v1.products.index', ['sort' => $sort]))->assertOk();
+
+    expect(collect($response->json('data'))->pluck('title')->all())->toBe($expected);
+})->with([
+    'title ascending' => ['title', ['Elden Ring', 'Hades II', 'Stardew Valley']],
+    'title descending' => ['-title', ['Stardew Valley', 'Hades II', 'Elden Ring']],
+    'price ascending' => ['price', ['Stardew Valley', 'Hades II', 'Elden Ring']],
+    'price descending' => ['-price', ['Elden Ring', 'Hades II', 'Stardew Valley']],
+    'oldest first' => ['created_at', ['Elden Ring', 'Hades II', 'Stardew Valley']],
+    'newest first' => ['-created_at', ['Stardew Valley', 'Hades II', 'Elden Ring']],
+]);
+
+it('keeps a stable order across pages when sort values tie', function () {
+    Product::factory()->count(6)->create(['price' => 1999]);
+
+    $first = $this->getJson(route('v1.products.index', ['sort' => 'price', 'per_page' => 3]))->json('data.*.id');
+    $second = $this->getJson(route('v1.products.index', ['sort' => 'price', 'per_page' => 3, 'page' => 2]))->json('data.*.id');
+
+    expect(array_intersect($first, $second))->toBeEmpty()
+        ->and([...$first, ...$second])->toBe(Product::query()->orderBy('id')->pluck('id')->all());
+});
+
+it('combines sorting with filters', function () {
+    Product::factory()->create(['platform' => Platform::Steam, 'price' => 999]);
+    Product::factory()->create(['platform' => Platform::Steam, 'price' => 4999]);
+    Product::factory()->create(['platform' => Platform::Xbox, 'price' => 9999]);
+
+    $this->getJson(route('v1.products.index', ['platform' => ['steam'], 'sort' => '-price']))
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.price.amount', 4999)
+        ->assertJsonPath('data.1.price.amount', 999);
+});
+
 it('rejects invalid filters', function (array $query, string $field) {
     $this->getJson(route('v1.products.index', $query))
         ->assertUnprocessable()
@@ -174,6 +223,7 @@ it('rejects invalid filters', function (array $query, string $field) {
     'negative min_price' => [['min_price' => -1], 'min_price'],
     'non-integer max_price' => [['max_price' => '9.99'], 'max_price'],
     'max_price below min_price' => [['min_price' => 5000, 'max_price' => 1000], 'max_price'],
+    'unknown sort' => [['sort' => 'popularity'], 'sort'],
     'per_page too large' => [['per_page' => 500], 'per_page'],
     'search too long' => [['search' => str_repeat('a', 101)], 'search'],
 ]);

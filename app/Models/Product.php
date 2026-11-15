@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Platform;
+use App\Enums\ProductSort;
 use App\Enums\ProductType;
 use App\Enums\Region;
 use Database\Factories\ProductFactory;
@@ -137,6 +138,15 @@ class Product extends Model
         $query
             ->when($min !== null, fn (Builder $query) => $query->where('price', '>=', $min))
             ->when($max !== null, fn (Builder $query) => $query->where('price', '<=', $max));
+    }
+
+    /**
+     * Order the query by the given sort, using the id as a stable tie-breaker.
+     */
+    #[Scope]
+    protected function sortBy(Builder $query, ProductSort $sort): void
+    {
+        $query->orderBy($sort->column(), $sort->direction())->orderBy('id', $sort->direction());
     }
 
     /**

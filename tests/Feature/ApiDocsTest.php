@@ -25,7 +25,7 @@ it('documents the ListProductsRequest query parameters', function () {
         ->keyBy('name');
 
     expect($parameters->keys()->all())->toEqualCanonicalizing([
-        'search', 'platform[]', 'region[]', 'type[]', 'min_price', 'max_price', 'per_page', 'page',
+        'search', 'platform[]', 'region[]', 'type[]', 'min_price', 'max_price', 'sort', 'per_page', 'page',
     ])
         ->and($parameters->every(fn (array $parameter) => $parameter['in'] === 'query'))->toBeTrue()
         ->and($parameters->every(fn (array $parameter) => ($parameter['required'] ?? false) === false))->toBeTrue()
@@ -33,12 +33,19 @@ it('documents the ListProductsRequest query parameters', function () {
         ->and($parameters['search']['schema']['maxLength'])->toBe(100)
         ->and($parameters['min_price']['schema'])->toMatchArray(['minimum' => 0])
         ->and($parameters['max_price']['schema'])->toMatchArray(['minimum' => 0])
-        ->and($parameters['per_page']['schema'])->toMatchArray(['minimum' => 1, 'maximum' => 100, 'default' => 20]);
+        ->and($parameters['per_page']['schema'])->toMatchArray(['minimum' => 1, 'maximum' => 100, 'default' => 20])
+        ->and($parameters['sort']['schema']['anyOf'][0])->toMatchArray(['$ref' => '#/components/schemas/ProductSort', 'default' => 'title']);
 
     foreach (['platform[]' => 'Platform', 'region[]' => 'Region', 'type[]' => 'ProductType'] as $name => $enum) {
         expect($parameters[$name]['schema']['type'])->toContain('array')
             ->and($parameters[$name]['schema']['items']['$ref'])->toBe("#/components/schemas/{$enum}");
     }
+});
+
+it('documents the ProductSort enum', function () {
+    $this->getJson('/docs/api.json')
+        ->assertJsonPath('components.schemas.ProductSort.type', 'string')
+        ->assertJsonPath('components.schemas.ProductSort.enum', ['title', '-title', 'price', '-price', 'created_at', '-created_at']);
 });
 
 it('documents the filters endpoint with ProductFilterOptionsResource', function () {

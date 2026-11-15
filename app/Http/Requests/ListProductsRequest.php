@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Platform;
+use App\Enums\ProductSort;
 use App\Enums\ProductType;
 use App\Enums\Region;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -66,6 +67,12 @@ class ListProductsRequest extends FormRequest
              * @example 4999
              */
             'max_price' => ['nullable', 'integer', 'min:0', Rule::when($this->filled('min_price'), 'gte:min_price')],
+            /**
+             * Sort order. Prefix with `-` for descending, e.g. `-price` is most expensive first and `-created_at` newest first.
+             *
+             * @default title
+             */
+            'sort' => ['nullable', Rule::enum(ProductSort::class)],
             /**
              * Number of products per page.
              *
