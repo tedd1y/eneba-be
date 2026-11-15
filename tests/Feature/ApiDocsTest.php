@@ -1,0 +1,72 @@
+<?php
+
+use Illuminate\Support\Facades\Gate;
+
+beforeEach(function () {
+    Gate::define('viewApiDocs', fn ($user = null) => true);
+});
+
+it('forbids the docs outside local unless the gate allows it', function () {
+    Gate::define('viewApiDocs', fn ($user = null) => false);
+
+    $this->get('/docs/api.json')->assertForbidden();
+});
+
+it('serves an OpenAPI document with the product endpoints', function () {
+    $this->getJson('/docs/api.json')
+        ->assertOk()
+        ->assertJsonPath('openapi', fn (string $version) => str_starts_with($version, '3.'))
+        ->assertJsonPath('paths./v1/products.get.operationId', 'v1.products.index')
+        ->assertJsonPath('paths./v1/products/{product}.get.operationId', 'v1.products.show');
+});
+
+it('documents the ListProductsRequest query parameters', function () {
+    $parameters = collect($this->getJson('/docs/api.json')->json('paths./v1/products.get.parameters'))
+        ->keyBy('name');
+
+    expect($parameters->keys()->all())->toEqualCanonicalizing(['search', 'platform', 'region', 'per_page', 'page'])
+        ->and($parameters->every(fn (array $parameter) => $parameter['in'] === 'query'))->toBeTrue()
+        ->and($parameters['search']['schema']['maxLength'])->toBe(100)
+        ->and($parameters['platform']['schema']['anyOf'][0]['$ref'])->toBe('#/components/schemas/Platform')
+        ->and($parameters['region']['schema']['anyOf'][0]['$ref'])->toBe('#/components/schemas/Region')
+        ->and($parameters['per_page']['schema'])->toMatchArray(['minimum' => 1, 'maximum' => 100, 'default' => 20]);
+});
+
+it('documents the index response as a paginated ProductResource collection', function () {
+    $schema = $this->getJson('/docs/api.json')
+        ->assertJsonPath('paths./v1/products.get.responses.422.$ref', '#/components/responses/ValidationException')
+        ->json('paths./v1/products.get.responses.200.content.application/json.schema');
+
+    expect($schema['required'])->toEqualCanonicalizing(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/ProductResource')
+        ->and($schema['properties']['meta']['properties'])->toHaveKeys(['current_page', 'last_page', 'per_page', 'total']);
+});
+
+it('documents the show endpoint by slug', function () {
+    $operation = $this->getJson('/docs/api.json')->json('paths./v1/products/{product}.get');
+
+    expect($operation['parameters'][0])->toMatchArray(['name' => 'product', 'in' => 'path', 'required' => true])
+        ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])
+        ->toBe('#/components/schemas/ProductResource')
+        ->and($operation['responses'])->toHaveKey('404');
+});
+
+it('describes the ProductResource schema', function () {
+    $resource = $this->getJson('/docs/api.json')->json('components.schemas.ProductResource');
+    $properties = $resource['properties'];
+
+    expect($resource['required'])->toEqualCanonicalizing([
+        'id', 'title', 'slug', 'platform', 'region', 'type', 'price', 'original_price',
+        'cashback', 'discount_percent', 'currency', 'image_url', 'created_at', 'updated_at',
+    ])
+        ->and($properties['price']['type'])->toBe('object')
+        ->and($properties['price']['properties']['amount']['type'])->toBe('integer')
+        ->and($properties['price']['properties']['formatted']['type'])->toBe('string')
+        ->and($properties['original_price']['type'])->toBe(['object', 'null'])
+        ->and($properties['cashback']['type'])->toBe(['object', 'null'])
+        ->and($properties['discount_percent']['type'])->toBe('integer')
+        ->and($properties['platform']['properties']['value']['enum'])->toContain('steam', 'playstation')
+        ->and($properties['region']['properties']['value']['enum'])->toContain('global', 'europe')
+        ->and($properties['type']['properties']['value']['enum'])->toContain('game', 'dlc')
+        ->and($properties['created_at']['format'])->toBe('date-time');
+});
