@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable([
     'title',
     'slug',
+    'description',
     'platform',
     'region',
     'type',

@@ -84,13 +84,26 @@ it('documents the index response as a paginated ProductResource collection', fun
         ->and($schema['properties']['meta']['properties'])->toHaveKeys(['current_page', 'last_page', 'per_page', 'total']);
 });
 
-it('documents the show endpoint by slug', function () {
+it('documents the show endpoint by slug with ProductDetailResource', function () {
     $operation = $this->getJson('/docs/api.json')->json('paths./v1/products/{product}.get');
 
     expect($operation['parameters'][0])->toMatchArray(['name' => 'product', 'in' => 'path', 'required' => true])
         ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])
-        ->toBe('#/components/schemas/ProductResource')
+        ->toBe('#/components/schemas/ProductDetailResource')
         ->and($operation['responses'])->toHaveKey('404');
+});
+
+it('describes ProductDetailResource as ProductResource plus a nullable description', function () {
+    $schemas = $this->getJson('/docs/api.json')->json('components.schemas');
+    $detail = $schemas['ProductDetailResource'];
+    $base = $schemas['ProductResource'];
+
+    expect(array_keys($detail['properties']))->toBe([...array_keys($base['properties']), 'description'])
+        ->and($detail['required'])->toEqualCanonicalizing([...$base['required'], 'description'])
+        ->and($detail['properties']['description']['type'])->toBe(['string', 'null'])
+        ->and($detail['properties']['description']['description'])->not->toBeEmpty()
+        ->and($detail['properties']['price'])->toBe($base['properties']['price'])
+        ->and($base['properties'])->not->toHaveKey('description');
 });
 
 it('describes the ProductResource schema', function () {

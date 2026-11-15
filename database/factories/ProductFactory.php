@@ -102,6 +102,7 @@ class ProductFactory extends Factory
         return [
             'title' => $title,
             'slug' => $slug,
+            'description' => fake()->boolean(85) ? $this->descriptionFor($type, $title, $platform, $region) : null,
             'platform' => $platform,
             'region' => $region,
             'type' => $type,
@@ -112,6 +113,34 @@ class ProductFactory extends Factory
             'image_url' => "https://picsum.photos/seed/{$slug}/460/215",
             'is_active' => true,
         ];
+    }
+
+    /**
+     * Write a storefront-style description for the given product.
+     */
+    private function descriptionFor(ProductType $type, string $title, Platform $platform, Region $region): string
+    {
+        $activation = $region === Region::Global
+            ? "This key can be activated worldwide on {$platform->label()}."
+            : "This key can only be activated on {$platform->label()} accounts in {$region->label()}.";
+
+        $intro = match ($type) {
+            ProductType::Game => fake()->randomElement([
+                "{$title} drops you into a vast world full of secrets, tough choices and memorable characters.",
+                "Experience {$title}, a critically acclaimed adventure with hours of story-driven gameplay.",
+                "{$title} blends tight combat, rich exploration and a world that reacts to every decision you make.",
+            ]),
+            ProductType::Dlc => "{$title} expands the base game with new areas, quests, gear and challenges. The base game is required to play.",
+            ProductType::GiftCard => "Top up your {$platform->label()} wallet with {$title} and spend it on games, add-ons and more.",
+            ProductType::Subscription => "{$title} gives you access to a rotating library of games, online multiplayer and member-only discounts.",
+            ProductType::InGameCurrency => "{$title} delivers premium currency straight to your account for skins, passes and other in-game items.",
+        };
+
+        return implode("\n\n", [
+            $intro,
+            $activation,
+            'You will receive a digital code immediately after purchase. No physical item will be shipped.',
+        ]);
     }
 
     /**
@@ -134,6 +163,14 @@ class ProductFactory extends Factory
 
         // Prices typically end in .99 or .49.
         return fake()->numberBetween(intdiv($min, 100), intdiv($max, 100)) * 100 + fake()->randomElement([49, 99]);
+    }
+
+    /**
+     * Indicate that the product has no description.
+     */
+    public function withoutDescription(): static
+    {
+        return $this->state(fn (array $attributes) => ['description' => null]);
     }
 
     /**

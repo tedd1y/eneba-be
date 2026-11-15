@@ -29,6 +29,14 @@ it('returns a paginated list of active products', function () {
         ]);
 });
 
+it('does not include the description in list items', function () {
+    Product::factory()->create(['description' => 'Long-form text for the product page.']);
+
+    $this->getJson(route('v1.products.index'))
+        ->assertOk()
+        ->assertJsonMissingPath('data.0.description');
+});
+
 it('respects the per_page parameter', function () {
     Product::factory()->count(8)->create();
 

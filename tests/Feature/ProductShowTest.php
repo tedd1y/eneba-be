@@ -9,6 +9,7 @@ it('returns a product by slug', function () {
     $product = Product::factory()->create([
         'title' => 'Baldur\'s Gate 3',
         'slug' => 'baldurs-gate-3-steam-global',
+        'description' => "Gather your party and return to the Forgotten Realms.\n\nThis key can be activated worldwide on Steam.",
         'platform' => Platform::Steam,
         'region' => Region::Global,
         'type' => ProductType::Game,
@@ -23,6 +24,7 @@ it('returns a product by slug', function () {
         ->assertJsonPath('data.id', $product->id)
         ->assertJsonPath('data.title', 'Baldur\'s Gate 3')
         ->assertJsonPath('data.slug', 'baldurs-gate-3-steam-global')
+        ->assertJsonPath('data.description', "Gather your party and return to the Forgotten Realms.\n\nThis key can be activated worldwide on Steam.")
         ->assertJsonPath('data.platform', ['value' => 'steam', 'label' => 'Steam'])
         ->assertJsonPath('data.region', ['value' => 'global', 'label' => 'Global'])
         ->assertJsonPath('data.type', ['value' => 'game', 'label' => 'Game'])
@@ -47,6 +49,24 @@ it('returns null prices and zero discount when there is no original price or cas
         ->assertJsonPath('data.original_price', null)
         ->assertJsonPath('data.cashback', null)
         ->assertJsonPath('data.discount_percent', 0);
+});
+
+it('returns a null description when the product has none', function () {
+    $product = Product::factory()->withoutDescription()->create();
+
+    $this->getJson(route('v1.products.show', $product))
+        ->assertOk()
+        ->assertJsonPath('data.description', null);
+});
+
+it('returns every list field plus the description', function () {
+    $product = Product::factory()->create();
+
+    $listItem = $this->getJson(route('v1.products.index'))->json('data.0');
+    $detail = $this->getJson(route('v1.products.show', $product))->json('data');
+
+    expect(array_keys($detail))->toBe([...array_keys($listItem), 'description'])
+        ->and(collect($detail)->except('description')->all())->toBe($listItem);
 });
 
 it('returns 404 for an unknown slug', function () {
