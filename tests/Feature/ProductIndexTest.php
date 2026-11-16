@@ -3,6 +3,7 @@
 use App\Enums\Platform;
 use App\Enums\ProductType;
 use App\Enums\Region;
+use App\Http\Requests\ListProductsRequest;
 use App\Models\Product;
 
 it('returns a paginated list of active products', function () {
@@ -211,6 +212,63 @@ it('combines sorting with filters', function () {
         ->assertJsonPath('data.1.price.amount', 999);
 });
 
+it('filters products by ids', function () {
+    [$first, , $third] = Product::factory()->count(3)->create()->all();
+
+    $response = $this->getJson(route('v1.products.index', ['ids' => [$first->id, $third->id]]))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    expect($response->json('data.*.id'))->toEqualCanonicalizing([$first->id, $third->id]);
+});
+
+it('accepts a single id', function () {
+    $product = Product::factory()->create();
+    Product::factory()->create();
+
+    $this->getJson(route('v1.products.index', ['ids' => $product->id]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $product->id);
+});
+
+it('leaves out inactive and unknown ids', function () {
+    $active = Product::factory()->create();
+    $inactive = Product::factory()->inactive()->create();
+
+    $this->getJson(route('v1.products.index', ['ids' => [$active->id, $inactive->id, 999999]]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $active->id);
+});
+
+it('combines ids with other filters and sorting', function () {
+    $cheap = Product::factory()->create(['platform' => Platform::Steam, 'price' => 999]);
+    $expensive = Product::factory()->create(['platform' => Platform::Steam, 'price' => 4999]);
+    $xbox = Product::factory()->create(['platform' => Platform::Xbox, 'price' => 1999]);
+    Product::factory()->create(['platform' => Platform::Steam, 'price' => 2999]);
+
+    $this->getJson(route('v1.products.index', [
+        'ids' => [$cheap->id, $expensive->id, $xbox->id],
+        'platform' => ['steam'],
+        'sort' => '-price',
+    ]))
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.id', $expensive->id)
+        ->assertJsonPath('data.1.id', $cheap->id);
+});
+
+it('accepts up to the maximum number of ids', function () {
+    $ids = range(1, ListProductsRequest::MAX_IDS);
+
+    $this->getJson(route('v1.products.index', ['ids' => $ids]))->assertOk();
+
+    $this->getJson(route('v1.products.index', ['ids' => [...$ids, ListProductsRequest::MAX_IDS + 1]]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('ids');
+});
+
 it('rejects invalid filters', function (array $query, string $field) {
     $this->getJson(route('v1.products.index', $query))
         ->assertUnprocessable()
@@ -223,6 +281,10 @@ it('rejects invalid filters', function (array $query, string $field) {
     'negative min_price' => [['min_price' => -1], 'min_price'],
     'non-integer max_price' => [['max_price' => '9.99'], 'max_price'],
     'max_price below min_price' => [['min_price' => 5000, 'max_price' => 1000], 'max_price'],
+    'non-integer id' => [['ids' => ['abc']], 'ids.0'],
+    'zero id' => [['ids' => [0]], 'ids.0'],
+    'negative id' => [['ids' => [5, -1]], 'ids.1'],
+    'duplicate ids' => [['ids' => [5, 5]], 'ids.0'],
     'unknown sort' => [['sort' => 'popularity'], 'sort'],
     'per_page too large' => [['per_page' => 500], 'per_page'],
     'search too long' => [['search' => str_repeat('a', 101)], 'search'],

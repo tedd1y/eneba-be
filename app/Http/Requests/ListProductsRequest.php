@@ -21,11 +21,16 @@ class ListProductsRequest extends FormRequest
     }
 
     /**
+     * Maximum number of IDs accepted in one request, matching the largest page size.
+     */
+    public const MAX_IDS = 100;
+
+    /**
      * Accept a single value (`?platform=steam`) as well as a list (`?platform[]=steam&platform[]=gog`).
      */
     protected function prepareForValidation(): void
     {
-        foreach (['platform', 'region', 'type'] as $key) {
+        foreach (['ids', 'platform', 'region', 'type'] as $key) {
             if (is_string($this->query($key))) {
                 $this->merge([$key => [$this->query($key)]]);
             }
@@ -46,6 +51,13 @@ class ListProductsRequest extends FormRequest
              * @example elden ring
              */
             'search' => ['nullable', 'string', 'max:100'],
+            'ids' => ['nullable', 'array', 'max:'.self::MAX_IDS],
+            /**
+             * Only return products with these IDs. Inactive and unknown IDs are left out rather than rejected. Up to 100 IDs; set `per_page` high enough to get them all on one page.
+             *
+             * @example [12, 31]
+             */
+            'ids.*' => ['integer', 'min:1', 'distinct'],
             'platform' => ['nullable', 'array'],
             /** Only return products for any of these platforms. A single value is also accepted. Repeat the parameter to match several (`platform[]=a&platform[]=b`). */
             'platform.*' => [Rule::enum(Platform::class)],

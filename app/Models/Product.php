@@ -97,6 +97,19 @@ class Product extends Model
     }
 
     /**
+     * Scope a query to the given product IDs, ignoring empty input.
+     *
+     * @param  array<int, int|string>|null  $ids
+     */
+    #[Scope]
+    protected function forIds(Builder $query, ?array $ids): void
+    {
+        if (! empty($ids)) {
+            $query->whereKey(array_map('intval', $ids));
+        }
+    }
+
+    /**
      * Scope a query to any of the given platforms.
      *
      * @param  array<int, Platform|string>|Platform|string|null  $platforms

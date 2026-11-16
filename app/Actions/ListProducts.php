@@ -16,6 +16,7 @@ class ListProducts
      * List active products, filtered and paginated.
      *
      * @param  array{
+     *     ids?: list<int|string>|null,
      *     search?: string|null,
      *     platform?: list<string>|null,
      *     region?: list<string>|null,
@@ -31,6 +32,7 @@ class ListProducts
     {
         return Product::query()
             ->active()
+            ->forIds($filters['ids'] ?? null)
             ->search($filters['search'] ?? null)
             ->forPlatforms($filters['platform'] ?? null)
             ->forRegions($filters['region'] ?? null)

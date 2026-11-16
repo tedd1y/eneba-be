@@ -25,11 +25,17 @@ it('documents the ListProductsRequest query parameters', function () {
         ->keyBy('name');
 
     expect($parameters->keys()->all())->toEqualCanonicalizing([
-        'search', 'platform[]', 'region[]', 'type[]', 'min_price', 'max_price', 'sort', 'per_page', 'page',
+        'ids[]', 'search', 'platform[]', 'region[]', 'type[]', 'min_price', 'max_price', 'sort', 'per_page', 'page',
     ])
         ->and($parameters->every(fn (array $parameter) => $parameter['in'] === 'query'))->toBeTrue()
         ->and($parameters->every(fn (array $parameter) => ($parameter['required'] ?? false) === false))->toBeTrue()
         ->and($parameters->every(fn (array $parameter) => filled($parameter['description'] ?? null)))->toBeTrue()
+        ->and($parameters['ids[]']['schema'])->toMatchArray([
+            'type' => ['array', 'null'],
+            'items' => ['type' => 'integer', 'minimum' => 1],
+            'maxItems' => 100,
+            'uniqueItems' => true,
+        ])
         ->and($parameters['search']['schema']['maxLength'])->toBe(100)
         ->and($parameters['min_price']['schema'])->toMatchArray(['minimum' => 0])
         ->and($parameters['max_price']['schema'])->toMatchArray(['minimum' => 0])
