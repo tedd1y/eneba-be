@@ -36,6 +36,12 @@ class GenreResource extends JsonResource
              */
             'label' => $this->name,
             /**
+             * Number of active products in this genre, as on `/v1/products/filters`.
+             *
+             * @example 12
+             */
+            'count' => (int) $this->products_count,
+            /**
              * Icon key for the frontend's icon set, or null when there is none.
              *
              * @example sword
