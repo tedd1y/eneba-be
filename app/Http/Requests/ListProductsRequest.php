@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\Platform;
 use App\Enums\ProductSort;
-use App\Enums\ProductType;
-use App\Enums\Region;
+use App\Models\Country;
+use App\Models\Genre;
+use App\Models\OperatingSystem;
+use App\Models\Platform;
+use App\Models\ProductType;
+use App\Models\Region;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,14 +29,19 @@ class ListProductsRequest extends FormRequest
     public const MAX_IDS = 100;
 
     /**
-     * Accept a single value (`?platform=steam`) as well as a list (`?platform[]=steam&platform[]=gog`).
+     * Accept a single value (`?platform=steam`) as well as a list (`?platform[]=steam&platform[]=gog`),
+     * and country codes in any case (`?country=LT`).
      */
     protected function prepareForValidation(): void
     {
-        foreach (['ids', 'platform', 'region', 'type'] as $key) {
+        foreach (['ids', 'platform', 'region', 'type', 'genre', 'os'] as $key) {
             if (is_string($this->query($key))) {
                 $this->merge([$key => [$this->query($key)]]);
             }
+        }
+
+        if (is_string($this->query('country'))) {
+            $this->merge(['country' => strtolower($this->query('country'))]);
         }
     }
 
@@ -59,14 +67,26 @@ class ListProductsRequest extends FormRequest
              */
             'ids.*' => ['integer', 'min:1', 'distinct'],
             'platform' => ['nullable', 'array'],
-            /** Only return products for any of these platforms. A single value is also accepted. Repeat the parameter to match several (`platform[]=a&platform[]=b`). */
-            'platform.*' => [Rule::enum(Platform::class)],
+            /** Only return products for any of these platform slugs (see `/v1/products/filters`). A single value is also accepted. */
+            'platform.*' => ['string', Rule::exists(Platform::class, 'slug')],
             'region' => ['nullable', 'array'],
-            /** Only return products for any of these regions. A single value is also accepted. Repeat the parameter to match several (`region[]=a&region[]=b`). */
-            'region.*' => [Rule::enum(Region::class)],
+            /** Only return products for any of these region slugs. A single value is also accepted. */
+            'region.*' => ['string', Rule::exists(Region::class, 'slug')],
+            /**
+             * Only return products that can be activated in this country (the product's region includes it). ISO 3166-1 alpha-2 code, any case.
+             *
+             * @example lt
+             */
+            'country' => ['nullable', 'string', Rule::exists(Country::class, 'slug')],
             'type' => ['nullable', 'array'],
-            /** Only return products of any of these types. A single value is also accepted. Repeat the parameter to match several (`type[]=a&type[]=b`). */
-            'type.*' => [Rule::enum(ProductType::class)],
+            /** Only return products of any of these product type slugs. A single value is also accepted. */
+            'type.*' => ['string', Rule::exists(ProductType::class, 'slug')],
+            'genre' => ['nullable', 'array'],
+            /** Only return products in any of these genre slugs. A single value is also accepted. */
+            'genre.*' => ['string', Rule::exists(Genre::class, 'slug')],
+            'os' => ['nullable', 'array'],
+            /** Only return products that run on any of these operating system slugs. A single value is also accepted. */
+            'os.*' => ['string', Rule::exists(OperatingSystem::class, 'slug')],
             /**
              * Minimum price in cents (inclusive).
              *

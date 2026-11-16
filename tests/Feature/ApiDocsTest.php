@@ -25,7 +25,8 @@ it('documents the ListProductsRequest query parameters', function () {
         ->keyBy('name');
 
     expect($parameters->keys()->all())->toEqualCanonicalizing([
-        'ids[]', 'search', 'platform[]', 'region[]', 'type[]', 'min_price', 'max_price', 'sort', 'per_page', 'page',
+        'ids[]', 'search', 'platform[]', 'region[]', 'country', 'type[]', 'genre[]', 'os[]',
+        'min_price', 'max_price', 'sort', 'per_page', 'page',
     ])
         ->and($parameters->every(fn (array $parameter) => $parameter['in'] === 'query'))->toBeTrue()
         ->and($parameters->every(fn (array $parameter) => ($parameter['required'] ?? false) === false))->toBeTrue()
@@ -42,10 +43,12 @@ it('documents the ListProductsRequest query parameters', function () {
         ->and($parameters['per_page']['schema'])->toMatchArray(['minimum' => 1, 'maximum' => 100, 'default' => 20])
         ->and($parameters['sort']['schema']['anyOf'][0])->toMatchArray(['$ref' => '#/components/schemas/ProductSort', 'default' => 'title']);
 
-    foreach (['platform[]' => 'Platform', 'region[]' => 'Region', 'type[]' => 'ProductType'] as $name => $enum) {
-        expect($parameters[$name]['schema']['type'])->toContain('array')
-            ->and($parameters[$name]['schema']['items']['$ref'])->toBe("#/components/schemas/{$enum}");
+    foreach (['platform[]', 'region[]', 'type[]', 'genre[]', 'os[]'] as $name) {
+        expect($parameters[$name]['schema'])->toBe(['type' => ['array', 'null'], 'items' => ['type' => 'string']]);
     }
+
+    expect($parameters['country']['schema'])->toBe(['type' => ['string', 'null']])
+        ->and($parameters['country']['example'])->toBe('lt');
 });
 
 it('documents the ProductSort enum', function () {
@@ -65,13 +68,29 @@ it('documents the filters endpoint with ProductFilterOptionsResource', function 
 
     $filters = $document['components']['schemas']['ProductFilterOptionsResource'];
     $option = $document['components']['schemas']['FilterOptionResource'];
+    $featuredOption = $document['components']['schemas']['FeaturedFilterOptionResource'];
 
-    expect($filters['required'])->toEqualCanonicalizing(['platforms', 'regions', 'types', 'price', 'currency']);
+    expect($filters['required'])->toEqualCanonicalizing([
+        'platforms', 'regions', 'countries', 'types', 'genres', 'operating_systems', 'price', 'currency',
+    ]);
 
-    foreach (['platforms', 'regions', 'types'] as $group) {
+    $groups = [
+        'platforms' => 'FeaturedFilterOptionResource',
+        'regions' => 'FilterOptionResource',
+        'countries' => 'FilterOptionResource',
+        'types' => 'FeaturedFilterOptionResource',
+        'genres' => 'FeaturedFilterOptionResource',
+        'operating_systems' => 'FilterOptionResource',
+    ];
+
+    foreach ($groups as $group => $schema) {
         expect($filters['properties'][$group]['type'])->toBe('array')
-            ->and($filters['properties'][$group]['items']['$ref'])->toBe('#/components/schemas/FilterOptionResource');
+            ->and($filters['properties'][$group]['items']['$ref'])->toBe("#/components/schemas/{$schema}");
     }
+
+    expect($featuredOption['required'])->toEqualCanonicalizing(['value', 'label', 'count', 'icon', 'is_featured'])
+        ->and($featuredOption['properties']['icon']['type'])->toBe(['string', 'null'])
+        ->and($featuredOption['properties']['is_featured']['type'])->toBe('boolean');
 
     foreach (['min', 'max'] as $bound) {
         $schema = $filters['properties']['price']['properties'][$bound];
@@ -106,17 +125,22 @@ it('documents the show endpoint by slug with ProductDetailResource', function ()
         ->and($operation['responses'])->toHaveKey('404');
 });
 
-it('describes ProductDetailResource as ProductResource plus a nullable description', function () {
+it('describes ProductDetailResource as ProductResource plus description, genres and operating systems', function () {
     $schemas = $this->getJson('/docs/api.json')->json('components.schemas');
     $detail = $schemas['ProductDetailResource'];
     $base = $schemas['ProductResource'];
+    $detailOnly = ['description', 'genres', 'operating_systems'];
 
-    expect(array_keys($detail['properties']))->toBe([...array_keys($base['properties']), 'description'])
-        ->and($detail['required'])->toEqualCanonicalizing([...$base['required'], 'description'])
+    expect(array_keys($detail['properties']))->toBe([...array_keys($base['properties']), ...$detailOnly])
+        ->and($detail['required'])->toEqualCanonicalizing([...$base['required'], ...$detailOnly])
         ->and($detail['properties']['description']['type'])->toBe(['string', 'null'])
+        ->and($detail['properties']['genres']['type'])->toBe('array')
+        ->and($detail['properties']['genres']['items']['$ref'])->toBe('#/components/schemas/LookupResource')
+        ->and($detail['properties']['operating_systems']['type'])->toBe('array')
+        ->and($detail['properties']['operating_systems']['items']['$ref'])->toBe('#/components/schemas/LookupResource')
         ->and($detail['properties']['description']['description'])->not->toBeEmpty()
         ->and($detail['properties']['price'])->toBe($base['properties']['price'])
-        ->and($base['properties'])->not->toHaveKey('description');
+        ->and($base['properties'])->not->toHaveKeys($detailOnly);
 });
 
 it('describes the ProductResource schema', function () {
@@ -134,8 +158,22 @@ it('describes the ProductResource schema', function () {
         ->and($properties['original_price']['type'])->toBe(['object', 'null'])
         ->and($properties['cashback']['type'])->toBe(['object', 'null'])
         ->and($properties['discount_percent']['type'])->toBe('integer')
-        ->and($properties['platform']['properties']['value']['enum'])->toContain('steam', 'playstation')
-        ->and($properties['region']['properties']['value']['enum'])->toContain('global', 'europe')
-        ->and($properties['type']['properties']['value']['enum'])->toContain('game', 'dlc')
         ->and($properties['created_at']['format'])->toBe('date-time');
+
+    foreach (['platform', 'region', 'type'] as $lookup) {
+        expect($properties[$lookup]['$ref'])->toBe('#/components/schemas/LookupResource');
+    }
+});
+
+it('describes the LookupResource value/label schema', function () {
+    $lookup = $this->getJson('/docs/api.json')->json('components.schemas.LookupResource');
+
+    expect($lookup['required'])->toEqualCanonicalizing(['value', 'label'])
+        ->and($lookup['properties']['value']['type'])->toBe('string')
+        ->and($lookup['properties']['label']['type'])->toBe('string');
+});
+
+it('no longer documents the removed platform, region and product type enums', function () {
+    expect($this->getJson('/docs/api.json')->json('components.schemas'))
+        ->not->toHaveKeys(['Platform', 'Region', 'ProductType']);
 });

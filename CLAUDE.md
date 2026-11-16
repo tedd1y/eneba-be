@@ -131,3 +131,4 @@ Before relying on a package's API, confirm its installed version:
 - Eloquent + query scopes, no repository layer
 - Paginate all lists
 - Feature test (Pest) for every endpoint
+- Ask before running destructive database commands (migrate:fresh, db:wipe, migrate:rollback).

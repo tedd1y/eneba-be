@@ -21,12 +21,12 @@ class ProductController extends Controller
     }
 
     /**
-     * Display the specified product, including its description.
+     * Display the specified product, including its description, genres and operating systems.
      */
     public function show(Product $product): ProductDetailResource
     {
         abort_unless($product->is_active, 404);
 
-        return new ProductDetailResource($product);
+        return new ProductDetailResource($product->load(Product::detailRelations()));
     }
 }

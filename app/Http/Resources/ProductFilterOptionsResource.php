@@ -24,12 +24,18 @@ class ProductFilterOptionsResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            /** Every platform, in a fixed order, including those with no products. */
-            'platforms' => FilterOptionResource::collection($this->platforms),
-            /** Every region, in a fixed order, including those with no products. */
+            /** Every platform in display order, including those with no products. */
+            'platforms' => FeaturedFilterOptionResource::collection($this->platforms),
+            /** Every region in display order, including those with no products. */
             'regions' => FilterOptionResource::collection($this->regions),
-            /** Every product type, in a fixed order, including those with no products. */
-            'types' => FilterOptionResource::collection($this->types),
+            /** Every country in display order, counting active products whose region includes it. */
+            'countries' => FilterOptionResource::collection($this->countries),
+            /** Every product type in display order, including those with no products. */
+            'types' => FeaturedFilterOptionResource::collection($this->types),
+            /** Every genre in display order, including those with no products. */
+            'genres' => FeaturedFilterOptionResource::collection($this->genres),
+            /** Every operating system in display order, including those with no products. */
+            'operating_systems' => FilterOptionResource::collection($this->operatingSystems),
             /** Price range of active products. Both bounds are null when there are no active products. */
             'price' => [
                 /** Lowest price among active products. */

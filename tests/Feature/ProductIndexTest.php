@@ -1,10 +1,10 @@
 <?php
 
-use App\Enums\Platform;
-use App\Enums\ProductType;
-use App\Enums\Region;
 use App\Http\Requests\ListProductsRequest;
+use App\Models\Country;
+use App\Models\Platform;
 use App\Models\Product;
+use App\Models\Region;
 
 it('returns a paginated list of active products', function () {
     Product::factory()->count(25)->create();
@@ -60,8 +60,8 @@ it('searches products by title', function () {
 });
 
 it('filters products by platform', function () {
-    Product::factory()->count(2)->create(['platform' => Platform::Steam]);
-    Product::factory()->count(3)->create(['platform' => Platform::Xbox]);
+    Product::factory()->count(2)->onPlatform('steam')->create();
+    Product::factory()->count(3)->onPlatform('xbox')->create();
 
     $this->getJson(route('v1.products.index', ['platform' => 'steam']))
         ->assertOk()
@@ -70,8 +70,8 @@ it('filters products by platform', function () {
 });
 
 it('filters products by region', function () {
-    Product::factory()->count(2)->create(['region' => Region::Europe]);
-    Product::factory()->count(3)->create(['region' => Region::Global]);
+    Product::factory()->count(2)->inRegion('europe')->create();
+    Product::factory()->count(3)->inRegion('global')->create();
 
     $this->getJson(route('v1.products.index', ['region' => 'europe']))
         ->assertOk()
@@ -80,10 +80,10 @@ it('filters products by region', function () {
 });
 
 it('combines search, platform and region filters', function () {
-    Product::factory()->create(['title' => 'Cyberpunk 2077', 'platform' => Platform::Gog, 'region' => Region::Global]);
-    Product::factory()->create(['title' => 'Cyberpunk 2077', 'platform' => Platform::Steam, 'region' => Region::Global]);
-    Product::factory()->create(['title' => 'Cyberpunk 2077', 'platform' => Platform::Gog, 'region' => Region::Europe]);
-    Product::factory()->create(['title' => 'Hades II', 'platform' => Platform::Gog, 'region' => Region::Global]);
+    Product::factory()->onPlatform('gog')->inRegion('global')->create(['title' => 'Cyberpunk 2077']);
+    Product::factory()->onPlatform('steam')->inRegion('global')->create(['title' => 'Cyberpunk 2077']);
+    Product::factory()->onPlatform('gog')->inRegion('europe')->create(['title' => 'Cyberpunk 2077']);
+    Product::factory()->onPlatform('gog')->inRegion('global')->create(['title' => 'Hades II']);
 
     $this->getJson(route('v1.products.index', ['search' => 'cyber', 'platform' => 'gog', 'region' => 'global']))
         ->assertOk()
@@ -93,9 +93,9 @@ it('combines search, platform and region filters', function () {
 });
 
 it('filters products by several platforms', function () {
-    Product::factory()->create(['platform' => Platform::Steam]);
-    Product::factory()->create(['platform' => Platform::Gog]);
-    Product::factory()->create(['platform' => Platform::Xbox]);
+    Product::factory()->onPlatform('steam')->create();
+    Product::factory()->onPlatform('gog')->create();
+    Product::factory()->onPlatform('xbox')->create();
 
     $response = $this->getJson(route('v1.products.index', ['platform' => ['steam', 'gog']]))
         ->assertOk()
@@ -105,9 +105,9 @@ it('filters products by several platforms', function () {
 });
 
 it('filters products by several regions', function () {
-    Product::factory()->create(['region' => Region::Europe]);
-    Product::factory()->create(['region' => Region::Global]);
-    Product::factory()->create(['region' => Region::Asia]);
+    Product::factory()->inRegion('europe')->create();
+    Product::factory()->inRegion('global')->create();
+    Product::factory()->inRegion('asia')->create();
 
     $response = $this->getJson(route('v1.products.index', ['region' => ['europe', 'global']]))
         ->assertOk()
@@ -117,9 +117,9 @@ it('filters products by several regions', function () {
 });
 
 it('filters products by type', function () {
-    Product::factory()->count(2)->create(['type' => ProductType::Game]);
-    Product::factory()->create(['type' => ProductType::Dlc]);
-    Product::factory()->create(['type' => ProductType::GiftCard]);
+    Product::factory()->count(2)->ofType('game')->create();
+    Product::factory()->ofType('dlc')->create();
+    Product::factory()->ofType('gift_card')->create();
 
     $this->getJson(route('v1.products.index', ['type' => 'game']))
         ->assertOk()
@@ -146,11 +146,11 @@ it('filters products by price range in cents, inclusive', function (array $query
 ]);
 
 it('combines array, type and price filters', function () {
-    Product::factory()->create(['platform' => Platform::Steam, 'region' => Region::Global, 'type' => ProductType::Game, 'price' => 1999]);
-    Product::factory()->create(['platform' => Platform::Gog, 'region' => Region::Europe, 'type' => ProductType::Game, 'price' => 2999]);
-    Product::factory()->create(['platform' => Platform::Steam, 'region' => Region::Global, 'type' => ProductType::Dlc, 'price' => 1999]);
-    Product::factory()->create(['platform' => Platform::Steam, 'region' => Region::Global, 'type' => ProductType::Game, 'price' => 5999]);
-    Product::factory()->create(['platform' => Platform::Xbox, 'region' => Region::Global, 'type' => ProductType::Game, 'price' => 1999]);
+    Product::factory()->onPlatform('steam')->inRegion('global')->ofType('game')->create(['price' => 1999]);
+    Product::factory()->onPlatform('gog')->inRegion('europe')->ofType('game')->create(['price' => 2999]);
+    Product::factory()->onPlatform('steam')->inRegion('global')->ofType('dlc')->create(['price' => 1999]);
+    Product::factory()->onPlatform('steam')->inRegion('global')->ofType('game')->create(['price' => 5999]);
+    Product::factory()->onPlatform('xbox')->inRegion('global')->ofType('game')->create(['price' => 1999]);
 
     $this->getJson(route('v1.products.index', [
         'platform' => ['steam', 'gog'],
@@ -201,9 +201,9 @@ it('keeps a stable order across pages when sort values tie', function () {
 });
 
 it('combines sorting with filters', function () {
-    Product::factory()->create(['platform' => Platform::Steam, 'price' => 999]);
-    Product::factory()->create(['platform' => Platform::Steam, 'price' => 4999]);
-    Product::factory()->create(['platform' => Platform::Xbox, 'price' => 9999]);
+    Product::factory()->onPlatform('steam')->create(['price' => 999]);
+    Product::factory()->onPlatform('steam')->create(['price' => 4999]);
+    Product::factory()->onPlatform('xbox')->create(['price' => 9999]);
 
     $this->getJson(route('v1.products.index', ['platform' => ['steam'], 'sort' => '-price']))
         ->assertOk()
@@ -243,10 +243,10 @@ it('leaves out inactive and unknown ids', function () {
 });
 
 it('combines ids with other filters and sorting', function () {
-    $cheap = Product::factory()->create(['platform' => Platform::Steam, 'price' => 999]);
-    $expensive = Product::factory()->create(['platform' => Platform::Steam, 'price' => 4999]);
-    $xbox = Product::factory()->create(['platform' => Platform::Xbox, 'price' => 1999]);
-    Product::factory()->create(['platform' => Platform::Steam, 'price' => 2999]);
+    $cheap = Product::factory()->onPlatform('steam')->create(['price' => 999]);
+    $expensive = Product::factory()->onPlatform('steam')->create(['price' => 4999]);
+    $xbox = Product::factory()->onPlatform('xbox')->create(['price' => 1999]);
+    Product::factory()->onPlatform('steam')->create(['price' => 2999]);
 
     $this->getJson(route('v1.products.index', [
         'ids' => [$cheap->id, $expensive->id, $xbox->id],
@@ -269,7 +269,106 @@ it('accepts up to the maximum number of ids', function () {
         ->assertJsonValidationErrors('ids');
 });
 
+it('filters products by country through the region\'s countries', function () {
+    $lithuania = Country::factory()->create(['slug' => 'lt', 'name' => 'Lithuania']);
+    $germany = Country::factory()->create(['slug' => 'de', 'name' => 'Germany']);
+    $japan = Country::factory()->create(['slug' => 'jp', 'name' => 'Japan']);
+
+    $global = Region::factory()->create(['slug' => 'global']);
+    $global->countries()->attach([$lithuania->id, $germany->id, $japan->id]);
+    $europe = Region::factory()->create(['slug' => 'europe']);
+    $europe->countries()->attach([$lithuania->id, $germany->id]);
+    $asia = Region::factory()->create(['slug' => 'asia']);
+    $asia->countries()->attach($japan->id);
+
+    $globalKey = Product::factory()->for($global)->create();
+    $europeanKey = Product::factory()->for($europe)->create();
+    Product::factory()->for($asia)->create();
+
+    $response = $this->getJson(route('v1.products.index', ['country' => 'lt']))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    expect($response->json('data.*.id'))->toEqualCanonicalizing([$globalKey->id, $europeanKey->id]);
+
+    $this->getJson(route('v1.products.index', ['country' => 'JP']))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+it('filters products by genres, matching any of them', function () {
+    $rpg = Product::factory()->withGenres(['role-playing', 'action'])->create();
+    $shooter = Product::factory()->withGenres(['shooter'])->create();
+    Product::factory()->withGenres(['racing'])->create();
+    Product::factory()->create();
+
+    $this->getJson(route('v1.products.index', ['genre' => 'action']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $rpg->id);
+
+    $response = $this->getJson(route('v1.products.index', ['genre' => ['action', 'shooter']]))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    expect($response->json('data.*.id'))->toEqualCanonicalizing([$rpg->id, $shooter->id]);
+});
+
+it('filters products by operating systems, matching any of them', function () {
+    $crossPlatform = Product::factory()->withOperatingSystems(['windows', 'macos', 'linux'])->create();
+    $windowsOnly = Product::factory()->withOperatingSystems(['windows'])->create();
+    Product::factory()->create();
+
+    $this->getJson(route('v1.products.index', ['os' => ['linux']]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $crossPlatform->id);
+
+    $response = $this->getJson(route('v1.products.index', ['os' => 'windows']))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    expect($response->json('data.*.id'))->toEqualCanonicalizing([$crossPlatform->id, $windowsOnly->id]);
+});
+
+it('does not duplicate products matching several genres or operating systems', function () {
+    Product::factory()->withGenres(['action', 'shooter'])->withOperatingSystems(['windows', 'linux'])->create();
+
+    $this->getJson(route('v1.products.index', ['genre' => ['action', 'shooter'], 'os' => ['windows', 'linux']]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('meta.total', 1);
+});
+
+it('combines the new filters with the existing ones', function () {
+    $lithuania = Country::factory()->create(['slug' => 'lt']);
+    $europe = Region::factory()->create(['slug' => 'europe']);
+    $europe->countries()->attach($lithuania->id);
+    $asia = Region::factory()->create(['slug' => 'asia']);
+
+    $match = Product::factory()->for($europe)->onPlatform('steam')->withGenres(['action'])->withOperatingSystems(['windows'])
+        ->create(['price' => 1999]);
+    Product::factory()->for($asia)->onPlatform('steam')->withGenres(['action'])->withOperatingSystems(['windows'])
+        ->create(['price' => 1999]);
+    Product::factory()->for($europe)->onPlatform('xbox')->withGenres(['action'])->create(['price' => 1999]);
+    Product::factory()->for($europe)->onPlatform('steam')->withGenres(['action'])->withOperatingSystems(['windows'])
+        ->create(['price' => 9999]);
+
+    $this->getJson(route('v1.products.index', [
+        'country' => 'lt',
+        'platform' => ['steam'],
+        'genre' => ['action'],
+        'os' => ['windows'],
+        'max_price' => 5000,
+    ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $match->id);
+});
+
 it('rejects invalid filters', function (array $query, string $field) {
+    Platform::factory()->create(['slug' => 'steam']);
+
     $this->getJson(route('v1.products.index', $query))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
@@ -278,6 +377,10 @@ it('rejects invalid filters', function (array $query, string $field) {
     'unknown platform in list' => [['platform' => ['steam', 'sega']], 'platform.1'],
     'unknown region' => [['region' => 'mars'], 'region.0'],
     'unknown type' => [['type' => ['bundle']], 'type.0'],
+    'unknown country' => [['country' => 'zz'], 'country'],
+    'country as a list' => [['country' => ['lt']], 'country'],
+    'unknown genre' => [['genre' => ['dating-sim']], 'genre.0'],
+    'unknown operating system' => [['os' => ['amiga']], 'os.0'],
     'negative min_price' => [['min_price' => -1], 'min_price'],
     'non-integer max_price' => [['max_price' => '9.99'], 'max_price'],
     'max_price below min_price' => [['min_price' => 5000, 'max_price' => 1000], 'max_price'],

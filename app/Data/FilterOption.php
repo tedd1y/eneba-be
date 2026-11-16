@@ -8,5 +8,7 @@ final readonly class FilterOption
         public string $value,
         public string $label,
         public int $count,
+        public ?string $icon = null,
+        public bool $isFeatured = false,
     ) {}
 }

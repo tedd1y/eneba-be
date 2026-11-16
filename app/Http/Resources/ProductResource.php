@@ -31,20 +31,11 @@ class ProductResource extends JsonResource
              */
             'slug' => $this->slug,
             /** Platform the key activates on. */
-            'platform' => [
-                'value' => $this->platform->value,
-                'label' => $this->platform->label(),
-            ],
+            'platform' => new LookupResource($this->platform),
             /** Region the key can be activated in. */
-            'region' => [
-                'value' => $this->region->value,
-                'label' => $this->region->label(),
-            ],
+            'region' => new LookupResource($this->region),
             /** Kind of product. */
-            'type' => [
-                'value' => $this->type->value,
-                'label' => $this->type->label(),
-            ],
+            'type' => new LookupResource($this->type),
             /** Current selling price. */
             'price' => $this->money($this->price, $this->currency),
             /** Price before discount, or null when the product is not discounted. */
