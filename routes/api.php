@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\HomeGalleryController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OrderPaymentController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -14,6 +15,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
 
     // Navigation
     Route::get('menus/sidemenu', [SideMenuController::class, 'index'])->name('menus.sidemenu.index');
+    Route::get('home/galleries', [HomeGalleryController::class, 'index'])->name('home.galleries.index');
 
     // Checkout
     Route::prefix('orders')->name('orders.')->whereUuid('order')->group(function () {

@@ -265,3 +265,22 @@ it('documents the side menu as an unpaginated list of SideMenuItemResource', fun
         ->and($item['properties']['href']['type'])->toBe('string')
         ->and($item['properties']['href']['description'])->not->toBeEmpty();
 });
+
+it('documents the home galleries as an unpaginated list of HomeGalleryResource', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $operation = $document['paths']['/v1/home/galleries']['get'];
+    $schema = $operation['responses']['200']['content']['application/json']['schema'];
+    $gallery = $document['components']['schemas']['HomeGalleryResource'];
+
+    expect($operation['operationId'])->toBe('v1.home.galleries.index')
+        ->and($operation['parameters'] ?? [])->toBe([])
+        ->and($schema['required'])->toBe(['data'])
+        ->and($schema['properties'])->not->toHaveKeys(['meta', 'links'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/HomeGalleryResource')
+        ->and($gallery['required'])->toEqualCanonicalizing(['id', 'label', 'href', 'limit'])
+        ->and($gallery['properties']['id']['type'])->toBe('integer')
+        ->and($gallery['properties']['label']['type'])->toBe('string')
+        ->and($gallery['properties']['href']['type'])->toBe('string')
+        ->and($gallery['properties']['limit']['type'])->toBe('integer')
+        ->and($gallery['properties']['limit']['description'])->toContain('per_page');
+});
