@@ -5,25 +5,6 @@ use App\Models\Product;
 use App\Models\Region;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\LazyLoadingViolationException;
-use Illuminate\Support\Facades\DB;
-
-/**
- * Count the database queries the given callback runs.
- */
-function countQueries(Closure $callback): int
-{
-    DB::flushQueryLog();
-    DB::enableQueryLog();
-
-    try {
-        $callback();
-
-        return count(DB::getQueryLog());
-    } finally {
-        DB::disableQueryLog();
-        DB::flushQueryLog();
-    }
-}
 
 /**
  * Create a product with its own platform, region, type, genres and operating systems, so nothing is shared.

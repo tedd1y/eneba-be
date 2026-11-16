@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -44,7 +45,20 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Count the database queries the given callback runs.
+ */
+function countQueries(Closure $callback): int
 {
-    // ..
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    try {
+        $callback();
+
+        return count(DB::getQueryLog());
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
 }

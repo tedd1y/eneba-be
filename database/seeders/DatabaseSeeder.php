@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             GenreSeeder::class,
             OperatingSystemSeeder::class,
             ProductSeeder::class,
+            OrderSeeder::class,
         ]);
     }
 }

@@ -177,3 +177,70 @@ it('no longer documents the removed platform, region and product type enums', fu
     expect($this->getJson('/docs/api.json')->json('components.schemas'))
         ->not->toHaveKeys(['Platform', 'Region', 'ProductType']);
 });
+
+it('documents placing an order with StoreOrderRequest and a 201 OrderResource', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $operation = $document['paths']['/v1/orders']['post'];
+    $request = $document['components']['schemas']['StoreOrderRequest'];
+    $item = $request['properties']['items'];
+
+    expect($operation['operationId'])->toBe('v1.orders.store')
+        ->and($operation['requestBody']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/StoreOrderRequest')
+        ->and($operation['responses'])->toHaveKeys(['201', '422', '429'])
+        ->and($operation['responses'])->not->toHaveKey('200')
+        ->and($operation['responses']['201']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/OrderResource')
+        ->and($request['required'])->toEqualCanonicalizing(['email', 'items'])
+        ->and($request['properties']['email'])->toMatchArray(['type' => 'string', 'format' => 'email', 'maxLength' => 255])
+        ->and($item)->toMatchArray(['type' => 'array', 'minItems' => 1, 'maxItems' => 40])
+        ->and($item['items']['required'])->toEqualCanonicalizing(['product_id', 'quantity'])
+        ->and($item['items']['properties']['product_id'])->toMatchArray(['type' => 'integer', 'minimum' => 1])
+        ->and($item['items']['properties']['quantity'])->toMatchArray(['type' => 'integer', 'minimum' => 1, 'maximum' => 10]);
+});
+
+it('documents showing and paying an order by its number', function () {
+    $paths = $this->getJson('/docs/api.json')->json('paths');
+    $show = $paths['/v1/orders/{order}']['get'];
+    $pay = $paths['/v1/orders/{order}/pay']['post'];
+
+    foreach ([$show, $pay] as $operation) {
+        expect($operation['parameters'][0])->toMatchArray(['name' => 'order', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string']])
+            ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/OrderResource')
+            ->and($operation['responses'])->toHaveKey('404');
+    }
+
+    expect($show['operationId'])->toBe('v1.orders.show')
+        ->and($pay['operationId'])->toBe('v1.orders.pay')
+        ->and($pay['responses'])->toHaveKeys(['409', '429']);
+});
+
+it('describes the OrderResource and OrderItemResource schemas without internal IDs', function () {
+    $schemas = $this->getJson('/docs/api.json')->json('components.schemas');
+    $order = $schemas['OrderResource'];
+    $item = $schemas['OrderItemResource'];
+
+    expect($order['required'])->toEqualCanonicalizing([
+        'number', 'email', 'status', 'subtotal', 'cashback', 'currency', 'items', 'paid_at', 'created_at', 'updated_at',
+    ])
+        ->and($order['properties']['status']['properties']['value']['$ref'])->toBe('#/components/schemas/OrderStatus')
+        ->and($order['properties']['status']['properties']['label']['type'])->toBe('string')
+        ->and($order['properties']['items']['items']['$ref'])->toBe('#/components/schemas/OrderItemResource')
+        ->and($order['properties']['paid_at']['type'])->toBe(['string', 'null'])
+        ->and($item['required'])->toEqualCanonicalizing([
+            'product_id', 'title', 'platform', 'region', 'unit_price', 'unit_cashback', 'quantity', 'line_total',
+        ])
+        ->and($item['properties']['product_id']['type'])->toBe(['integer', 'null'])
+        ->and($order['properties'])->not->toHaveKey('id')
+        ->and($item['properties'])->not->toHaveKeys(['id', 'order_id']);
+
+    foreach (['subtotal', 'cashback'] as $money) {
+        expect($order['properties'][$money]['properties']['amount']['type'])->toBe('integer')
+            ->and($order['properties'][$money]['properties']['formatted']['type'])->toBe('string');
+    }
+
+    foreach (['unit_price', 'unit_cashback', 'line_total'] as $money) {
+        expect($item['properties'][$money]['type'])->toBe('object')
+            ->and($item['properties'][$money]['properties']['amount']['type'])->toBe('integer');
+    }
+
+    expect($schemas['OrderStatus']['enum'])->toBe(['pending', 'paid', 'completed', 'failed', 'cancelled']);
+});
