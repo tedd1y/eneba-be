@@ -197,13 +197,14 @@ it('documents placing an order with StoreOrderRequest and a 201 OrderResource', 
         ->and($item['items']['properties']['quantity'])->toMatchArray(['type' => 'integer', 'minimum' => 1, 'maximum' => 10]);
 });
 
-it('documents showing and paying an order by its number', function () {
+it('documents showing and paying an order by its UUID', function () {
     $paths = $this->getJson('/docs/api.json')->json('paths');
     $show = $paths['/v1/orders/{order}']['get'];
     $pay = $paths['/v1/orders/{order}/pay']['post'];
 
     foreach ([$show, $pay] as $operation) {
         expect($operation['parameters'][0])->toMatchArray(['name' => 'order', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string']])
+            ->and($operation['parameters'][0]['description'])->toContain('UUID')
             ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/OrderResource')
             ->and($operation['responses'])->toHaveKey('404');
     }
@@ -219,8 +220,10 @@ it('describes the OrderResource and OrderItemResource schemas without internal I
     $item = $schemas['OrderItemResource'];
 
     expect($order['required'])->toEqualCanonicalizing([
-        'number', 'email', 'status', 'subtotal', 'cashback', 'currency', 'items', 'paid_at', 'created_at', 'updated_at',
+        'uuid', 'number', 'email', 'status', 'subtotal', 'cashback', 'currency', 'items', 'paid_at', 'created_at', 'updated_at',
     ])
+        ->and($order['properties']['uuid'])->toMatchArray(['type' => 'string', 'format' => 'uuid'])
+        ->and(array_key_first($order['properties']))->toBe('uuid')
         ->and($order['properties']['status']['properties']['value']['$ref'])->toBe('#/components/schemas/OrderStatus')
         ->and($order['properties']['status']['properties']['label']['type'])->toBe('string')
         ->and($order['properties']['items']['items']['$ref'])->toBe('#/components/schemas/OrderItemResource')

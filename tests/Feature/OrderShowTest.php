@@ -2,8 +2,9 @@
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use Illuminate\Support\Str;
 
-it('returns an order by its number', function () {
+it('returns an order by its UUID', function () {
     $order = Order::factory()->paid()->create([
         'number' => 'O-7KD2XQ9M',
         'email' => 'buyer@example.com',
@@ -30,6 +31,7 @@ it('returns an order by its number', function () {
 
     $this->getJson(route('v1.orders.show', $order))
         ->assertOk()
+        ->assertJsonPath('data.uuid', $order->uuid)
         ->assertJsonPath('data.number', 'O-7KD2XQ9M')
         ->assertJsonPath('data.email', 'buyer@example.com')
         ->assertJsonPath('data.status', ['value' => 'paid', 'label' => 'Paid'])
@@ -43,15 +45,25 @@ it('returns an order by its number', function () {
         ->assertJsonPath('data.items.1.quantity', 2)
         ->assertJsonPath('data.items.1.line_total', ['amount' => 4798, 'formatted' => '€47.98']);
 
-    expect(route('v1.orders.show', $order))->toEndWith('/api/v1/orders/O-7KD2XQ9M');
+    expect(route('v1.orders.show', $order))->toEndWith("/api/v1/orders/{$order->uuid}");
 });
 
-it('finds the order whatever the case of the number', function () {
-    Order::factory()->create(['number' => 'O-7KD2XQ9M']);
+it('generates a time-ordered UUID for every order', function () {
+    $first = Order::factory()->create();
+    $second = Order::factory()->create();
 
-    $this->getJson('/api/v1/orders/o-7kd2xq9m')
-        ->assertOk()
-        ->assertJsonPath('data.number', 'O-7KD2XQ9M');
+    expect(Str::isUuid($first->uuid, 7))->toBeTrue()
+        ->and(Str::isUuid($second->uuid, 7))->toBeTrue()
+        ->and($first->uuid)->not->toBe($second->uuid)
+        ->and(strcmp($first->uuid, $second->uuid))->toBeLessThan(0)
+        ->and($first->getKey())->toBeInt();
+});
+
+it('cannot be looked up by its order number', function () {
+    $order = Order::factory()->create(['number' => 'O-7KD2XQ9M']);
+
+    $this->getJson('/api/v1/orders/O-7KD2XQ9M')->assertNotFound();
+    $this->getJson("/api/v1/orders/{$order->uuid}")->assertOk();
 });
 
 it('shows the status label for every status', function (string $state, array $status) {
@@ -79,6 +91,8 @@ it('cannot be looked up by its database ID', function () {
     $this->getJson("/api/v1/orders/{$order->id}")->assertNotFound();
 });
 
-it('returns 404 for an unknown number', function () {
-    $this->getJson('/api/v1/orders/O-ZZZZZZZZ')->assertNotFound();
+it('returns 404 for an unknown UUID', function () {
+    Order::factory()->create();
+
+    $this->getJson('/api/v1/orders/'.Str::uuid7())->assertNotFound();
 });

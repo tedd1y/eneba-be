@@ -5,10 +5,10 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'number',
@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     public const NUMBER_PREFIX = 'O-';
 
@@ -59,26 +59,25 @@ class Order extends Model
     }
 
     /**
-     * Get the route key for the model.
+     * Columns that receive a generated, time-ordered UUID on create. The integer `id` stays the primary key.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    /**
+     * Get the route key for the model; URLs use the unguessable UUID, never the order number or ID.
      */
     public function getRouteKeyName(): string
     {
-        return 'number';
+        return 'uuid';
     }
 
     /**
-     * Resolve order numbers case-insensitively, so `o-abcd2345` finds `O-ABCD2345`.
-     *
-     * @param  mixed  $value
-     * @param  string|null  $field
-     */
-    public function resolveRouteBinding($value, $field = null): ?Model
-    {
-        return parent::resolveRouteBinding(is_string($value) ? Str::upper($value) : $value, $field);
-    }
-
-    /**
-     * Generate a random order number such as `O-7KD2XQ9M`. Uniqueness is checked by the caller.
+     * Generate a random order number such as `O-7KD2XQ9M`. Shown to customers as their order reference; uniqueness is checked by the caller.
      */
     public static function generateNumber(): string
     {

@@ -23,7 +23,15 @@ class OrderResource extends JsonResource
     {
         return [
             /**
-             * Public order reference, used to fetch and pay the order.
+             * Identifier used in order URLs (`/v1/orders/{uuid}`, `/v1/orders/{uuid}/pay`).
+             *
+             * @format uuid
+             *
+             * @example 019a8c3e-5f2b-7c1d-9e4a-3b6f8d2c1a07
+             */
+            'uuid' => $this->uuid,
+            /**
+             * Human-readable order number to show to the customer. Not accepted in URLs.
              *
              * @example O-7KD2XQ9M
              */

@@ -12,7 +12,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 
     // Checkout
-    Route::prefix('orders')->name('orders.')->group(function () {
+    Route::prefix('orders')->name('orders.')->whereUuid('order')->group(function () {
         Route::post('/', [OrderController::class, 'store'])->middleware('throttle:orders.store')->name('store');
         Route::get('{order}', [OrderController::class, 'show'])->name('show');
         Route::post('{order}/pay', [OrderPaymentController::class, 'store'])->middleware('throttle:orders.pay')->name('pay');

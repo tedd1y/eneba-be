@@ -4,6 +4,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 it('pays a pending order', function () {
     Carbon::setTestNow('2026-11-16 12:00:00');
@@ -11,6 +12,7 @@ it('pays a pending order', function () {
 
     $this->postJson(route('v1.orders.pay', $order))
         ->assertOk()
+        ->assertJsonPath('data.uuid', $order->uuid)
         ->assertJsonPath('data.number', $order->number)
         ->assertJsonPath('data.status', ['value' => 'paid', 'label' => 'Paid'])
         ->assertJsonPath('data.paid_at', '2026-11-16T12:00:00+00:00')
@@ -70,7 +72,15 @@ it('returns 409 when the order cannot be paid', function () {
 });
 
 it('returns 404 when paying an unknown order', function () {
-    $this->postJson('/api/v1/orders/O-ZZZZZZZZ/pay')->assertNotFound();
+    $this->postJson('/api/v1/orders/'.Str::uuid7().'/pay')->assertNotFound();
+});
+
+it('cannot be paid by its order number', function () {
+    $order = Order::factory()->create();
+
+    $this->postJson("/api/v1/orders/{$order->number}/pay")->assertNotFound();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Pending);
 });
 
 it('throttles payments to 10 requests per minute', function () {

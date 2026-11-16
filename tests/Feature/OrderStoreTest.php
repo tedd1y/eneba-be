@@ -4,6 +4,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 /**
  * Build an order payload for the given products, one key each unless quantities are given.
@@ -68,7 +69,9 @@ it('creates a pending order with snapshots priced from the catalog', function ()
 
     $order = Order::query()->sole();
 
-    expect($response->json('data.number'))->toBe($order->number)
+    expect($response->json('data.uuid'))->toBe($order->uuid)
+        ->and(Str::isUuid($order->uuid, 7))->toBeTrue()
+        ->and($response->json('data.number'))->toBe($order->number)
         ->and($order->number)->toMatch('/^O-[2-9A-HJ-NP-Z]{8}$/')
         ->and($order->status)->toBe(OrderStatus::Pending)
         ->and($order->subtotal)->toBe(11098)
@@ -90,7 +93,7 @@ it('ignores prices and other fields sent by the client', function () {
 
     $payload = orderPayload([$product]);
     $payload['items'][0] += ['unit_price' => 1, 'price' => 1, 'line_total' => 1, 'unit_cashback' => 99999];
-    $payload += ['subtotal' => 1, 'cashback' => 99999, 'status' => 'paid', 'currency' => 'USD', 'number' => 'O-HACKED00'];
+    $payload += ['subtotal' => 1, 'cashback' => 99999, 'status' => 'paid', 'currency' => 'USD', 'number' => 'O-HACKED00', 'uuid' => '00000000-0000-7000-8000-000000000000'];
 
     $this->postJson(route('v1.orders.store'), $payload)
         ->assertCreated()
@@ -99,23 +102,24 @@ it('ignores prices and other fields sent by the client', function () {
         ->assertJsonPath('data.status.value', 'pending')
         ->assertJsonPath('data.currency', 'EUR')
         ->assertJsonPath('data.items.0.unit_price.amount', 4299)
-        ->assertJsonPath('data.number', fn (string $number) => $number !== 'O-HACKED00');
+        ->assertJsonPath('data.number', fn (string $number) => $number !== 'O-HACKED00')
+        ->assertJsonPath('data.uuid', fn (string $uuid) => $uuid !== '00000000-0000-7000-8000-000000000000');
 });
 
 it('keeps the snapshot when the product changes or is deleted later', function () {
     $product = Product::factory()->onPlatform('steam')->create(['title' => 'Elden Ring', 'price' => 4299]);
 
-    $number = $this->postJson(route('v1.orders.store'), orderPayload([$product]))->assertCreated()->json('data.number');
+    $uuid = $this->postJson(route('v1.orders.store'), orderPayload([$product]))->assertCreated()->json('data.uuid');
 
     $product->update(['title' => 'Elden Ring (Renamed)', 'price' => 9999]);
 
-    $this->getJson(route('v1.orders.show', $number))
+    $this->getJson(route('v1.orders.show', $uuid))
         ->assertJsonPath('data.items.0.title', 'Elden Ring')
         ->assertJsonPath('data.items.0.unit_price.amount', 4299);
 
     $product->delete();
 
-    $this->getJson(route('v1.orders.show', $number))
+    $this->getJson(route('v1.orders.show', $uuid))
         ->assertOk()
         ->assertJsonPath('data.items.0.product_id', null)
         ->assertJsonPath('data.items.0.title', 'Elden Ring')
@@ -217,13 +221,14 @@ it('rejects invalid order input', function (Closure $payload, string|array $erro
     'non-integer quantity' => [fn (Product $p) => ['email' => 'buyer@example.com', 'items' => [['product_id' => $p->id, 'quantity' => 1.5]]], 'items.0.quantity'],
 ]);
 
-it('generates a different number for every order', function () {
+it('generates a different number and UUID for every order', function () {
     $product = Product::factory()->create();
 
-    $numbers = collect(range(1, 5))
-        ->map(fn () => $this->postJson(route('v1.orders.store'), orderPayload([$product]))->assertCreated()->json('data.number'));
+    $orders = collect(range(1, 5))
+        ->map(fn () => $this->postJson(route('v1.orders.store'), orderPayload([$product]))->assertCreated()->json('data'));
 
-    expect($numbers->unique())->toHaveCount(5);
+    expect($orders->pluck('number')->unique())->toHaveCount(5)
+        ->and($orders->pluck('uuid')->unique())->toHaveCount(5);
 });
 
 it('throttles order creation to 10 requests per minute', function () {

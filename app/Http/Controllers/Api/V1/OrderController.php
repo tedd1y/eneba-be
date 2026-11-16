@@ -14,7 +14,7 @@ class OrderController extends Controller
     /**
      * Place a guest order.
      *
-     * Creates a pending order priced from the catalog. Pay it with `POST /v1/orders/{order}/pay`.
+     * Creates a pending order priced from the catalog. Pay it with `POST /v1/orders/{order}/pay`, using the returned `uuid`.
      * Limited to 10 requests per minute per client.
      *
      * @throws ThrottleRequestsException
@@ -26,7 +26,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Display an order by its number.
+     * Display an order by its UUID.
      */
     public function show(Order $order): OrderResource
     {
