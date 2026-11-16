@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             OperatingSystemSeeder::class,
             ProductSeeder::class,
             OrderSeeder::class,
+            SideMenuItemSeeder::class,
         ]);
     }
 }

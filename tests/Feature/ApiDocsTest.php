@@ -247,3 +247,21 @@ it('describes the OrderResource and OrderItemResource schemas without internal I
 
     expect($schemas['OrderStatus']['enum'])->toBe(['pending', 'paid', 'completed', 'failed', 'cancelled']);
 });
+
+it('documents the side menu as an unpaginated list of SideMenuItemResource', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $operation = $document['paths']['/v1/menus/sidemenu']['get'];
+    $schema = $operation['responses']['200']['content']['application/json']['schema'];
+    $item = $document['components']['schemas']['SideMenuItemResource'];
+
+    expect($operation['operationId'])->toBe('v1.menus.sidemenu.index')
+        ->and($operation['parameters'] ?? [])->toBe([])
+        ->and($schema['required'])->toBe(['data'])
+        ->and($schema['properties'])->not->toHaveKeys(['meta', 'links'])
+        ->and($schema['properties']['data']['type'])->toBe('array')
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/SideMenuItemResource')
+        ->and($item['required'])->toEqualCanonicalizing(['label', 'href'])
+        ->and($item['properties']['label']['type'])->toBe('string')
+        ->and($item['properties']['href']['type'])->toBe('string')
+        ->and($item['properties']['href']['description'])->not->toBeEmpty();
+});
