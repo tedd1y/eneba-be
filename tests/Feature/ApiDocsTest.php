@@ -284,3 +284,21 @@ it('documents the home galleries as an unpaginated list of HomeGalleryResource',
         ->and($gallery['properties']['limit']['type'])->toBe('integer')
         ->and($gallery['properties']['limit']['description'])->toContain('per_page');
 });
+
+it('documents the genres endpoint as an unpaginated list of GenreResource', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $operation = $document['paths']['/v1/genres']['get'];
+    $schema = $operation['responses']['200']['content']['application/json']['schema'];
+    $genre = $document['components']['schemas']['GenreResource'];
+
+    expect($operation['operationId'])->toBe('v1.genres.index')
+        ->and($operation['parameters'] ?? [])->toBe([])
+        ->and($schema['required'])->toBe(['data'])
+        ->and($schema['properties'])->not->toHaveKeys(['meta', 'links'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/GenreResource')
+        ->and($genre['required'])->toEqualCanonicalizing(['value', 'label', 'icon', 'is_featured'])
+        ->and($genre['properties']['value']['type'])->toBe('string')
+        ->and($genre['properties']['label']['type'])->toBe('string')
+        ->and($genre['properties']['icon']['type'])->toBe(['string', 'null'])
+        ->and($genre['properties']['is_featured']['type'])->toBe('boolean');
+});

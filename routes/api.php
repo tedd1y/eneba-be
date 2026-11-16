@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\GenreController;
 use App\Http\Controllers\Api\V1\HomeGalleryController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OrderPaymentController;
@@ -12,6 +13,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
     // Store
     Route::get('products/filters', [ProductFilterController::class, 'index'])->name('products.filters.index');
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
+    Route::apiResource('genres', GenreController::class)->only(['index']);
 
     // Navigation
     Route::get('menus/sidemenu', [SideMenuController::class, 'index'])->name('menus.sidemenu.index');
