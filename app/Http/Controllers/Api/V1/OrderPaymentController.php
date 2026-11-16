@@ -15,11 +15,14 @@ class OrderPaymentController extends Controller
      *
      * Takes a mock payment that always succeeds. Paying an already paid order returns it unchanged, so retries are safe.
      * Returns 409 when the order cannot be paid, e.g. because it was cancelled. Limited to 10 requests per minute per client.
+     * Not available in production, where it returns 404.
      *
      * @throws ThrottleRequestsException
      */
     public function store(Order $order, PayOrder $payOrder): OrderResource
     {
+        abort_unless(config('payments.mock_enabled'), 404, 'Payments are not available in this environment.');
+
         return new OrderResource($payOrder->handle($order));
     }
 }

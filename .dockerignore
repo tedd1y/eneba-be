@@ -1,0 +1,35 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Dependencies are installed inside the image
+vendor
+node_modules
+
+# Development-only files
+tests
+phpunit.xml
+.git
+.gitignore
+.github
+.idea
+.vscode
+.ai
+.claude
+.phpunit.cache
+.DS_Store
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Runtime files: logs, caches and the local SQLite database
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing
+bootstrap/cache/*.php
+database/*.sqlite*
+public/hot
+public/storage

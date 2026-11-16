@@ -5,7 +5,9 @@ namespace App\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +31,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Model::preventLazyLoading(! $this->app->isProduction());
+
+        URL::forceHttps($this->app->isProduction());
+
+        // Scramble always allows the docs locally; this opens them on other non-production environments
+        // (e.g. staging) and keeps them closed in production.
+        Gate::define('viewApiDocs', fn ($user = null) => ! $this->app->isProduction());
 
         $this->configureRateLimiting();
     }

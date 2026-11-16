@@ -38,8 +38,8 @@ it('documents the ListProductsRequest query parameters', function () {
             'uniqueItems' => true,
         ])
         ->and($parameters['search']['schema']['maxLength'])->toBe(100)
-        ->and($parameters['min_price']['schema'])->toMatchArray(['minimum' => 0])
-        ->and($parameters['max_price']['schema'])->toMatchArray(['minimum' => 0])
+        ->and($parameters['min_price']['schema'])->toMatchArray(['minimum' => 0, 'maximum' => 2147483647])
+        ->and($parameters['max_price']['schema'])->toMatchArray(['minimum' => 0, 'maximum' => 2147483647])
         ->and($parameters['per_page']['schema'])->toMatchArray(['minimum' => 1, 'maximum' => 100, 'default' => 20])
         ->and($parameters['sort']['schema']['anyOf'][0])->toMatchArray(['$ref' => '#/components/schemas/ProductSort', 'default' => 'title']);
 

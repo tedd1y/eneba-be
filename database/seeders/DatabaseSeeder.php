@@ -12,10 +12,22 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * Production only gets the reference data the storefront needs (taxonomy, side menu, home galleries), all of
+     * which is safe to re-seed. Other environments also get a test user, demo products and orders, which rely on
+     * factories and Faker (a dev-only dependency).
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        if (app()->isProduction()) {
+            $this->call([
+                TaxonomySeeder::class,
+                SideMenuItemSeeder::class,
+                HomeGallerySeeder::class,
+            ]);
+
+            return;
+        }
 
         User::factory()->create([
             'name' => 'Test User',
@@ -23,12 +35,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            PlatformSeeder::class,
-            ProductTypeSeeder::class,
-            RegionSeeder::class,
-            CountrySeeder::class,
-            GenreSeeder::class,
-            OperatingSystemSeeder::class,
+            TaxonomySeeder::class,
             ProductSeeder::class,
             OrderSeeder::class,
             SideMenuItemSeeder::class,

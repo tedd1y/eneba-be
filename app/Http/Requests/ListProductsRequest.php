@@ -29,6 +29,11 @@ class ListProductsRequest extends FormRequest
     public const MAX_IDS = 100;
 
     /**
+     * Largest price filter accepted, in cents: the upper bound of the `price` column (a 32-bit integer in Postgres).
+     */
+    public const MAX_PRICE = 2147483647;
+
+    /**
      * Accept a single value (`?platform=steam`) as well as a list (`?platform[]=steam&platform[]=gog`),
      * and country codes in any case (`?country=LT`).
      */
@@ -88,17 +93,17 @@ class ListProductsRequest extends FormRequest
             /** Only return products that run on any of these operating system slugs. A single value is also accepted. */
             'os.*' => ['string', Rule::exists(OperatingSystem::class, 'slug')],
             /**
-             * Minimum price in cents (inclusive).
+             * Minimum price in cents (inclusive), at most 2147483647.
              *
              * @example 999
              */
-            'min_price' => ['nullable', 'integer', 'min:0'],
+            'min_price' => ['nullable', 'integer', 'min:0', 'max:'.self::MAX_PRICE],
             /**
-             * Maximum price in cents (inclusive). Must not be lower than `min_price`.
+             * Maximum price in cents (inclusive), at most 2147483647. Must not be lower than `min_price`.
              *
              * @example 4999
              */
-            'max_price' => ['nullable', 'integer', 'min:0', Rule::when($this->filled('min_price'), 'gte:min_price')],
+            'max_price' => ['nullable', 'integer', 'min:0', 'max:'.self::MAX_PRICE, Rule::when($this->filled('min_price'), 'gte:min_price')],
             /**
              * Sort order. Prefix with `-` for descending, e.g. `-price` is most expensive first and `-created_at` newest first.
              *

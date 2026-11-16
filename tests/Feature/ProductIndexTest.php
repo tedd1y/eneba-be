@@ -145,6 +145,18 @@ it('filters products by price range in cents, inclusive', function (array $query
     'min equals max' => [['min_price' => 2999, 'max_price' => 2999], [2999]],
 ]);
 
+it('accepts price filters up to the largest storable price', function () {
+    Product::factory()->create(['price' => 1999]);
+
+    $this->getJson(route('v1.products.index', ['min_price' => 0, 'max_price' => 2147483647]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data');
+
+    $this->getJson(route('v1.products.index', ['min_price' => 2147483647]))
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+});
+
 it('combines array, type and price filters', function () {
     Product::factory()->onPlatform('steam')->inRegion('global')->ofType('game')->create(['price' => 1999]);
     Product::factory()->onPlatform('gog')->inRegion('europe')->ofType('game')->create(['price' => 2999]);
@@ -382,6 +394,9 @@ it('rejects invalid filters', function (array $query, string $field) {
     'unknown genre' => [['genre' => ['dating-sim']], 'genre.0'],
     'unknown operating system' => [['os' => ['amiga']], 'os.0'],
     'negative min_price' => [['min_price' => -1], 'min_price'],
+    'min_price above the price column range' => [['min_price' => 2147483648], 'min_price'],
+    'max_price above the price column range' => [['max_price' => 3000000000], 'max_price'],
+    'huge min_price' => [['min_price' => 99999999999], 'min_price'],
     'non-integer max_price' => [['max_price' => '9.99'], 'max_price'],
     'max_price below min_price' => [['min_price' => 5000, 'max_price' => 1000], 'max_price'],
     'non-integer id' => [['ids' => ['abc']], 'ids.0'],

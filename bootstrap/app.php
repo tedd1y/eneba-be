@@ -13,7 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Render (and similar hosts) terminate TLS at a load balancer; trust its X-Forwarded-* headers so
+        // request IPs (used for rate limiting) and the HTTPS scheme are the client's, not the proxy's.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
