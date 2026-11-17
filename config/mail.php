@@ -61,6 +61,11 @@ return [
             // ],
         ],
 
+        // Brevo's HTTP API (symfony/brevo-mailer), used in production. The key is in services.brevo.
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
         'resend' => [
             'transport' => 'resend',
         ],

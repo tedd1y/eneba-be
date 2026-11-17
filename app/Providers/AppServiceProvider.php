@@ -11,10 +11,15 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,7 +48,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Used by the Brevo mail transport; tests swap it for a mock to avoid calling Brevo.
+        $this->app->singleton(HttpClientInterface::class, fn () => HttpClient::create());
     }
 
     /**
@@ -61,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->configureRateLimiting();
         $this->configureApiDocumentation();
+        $this->configureBrevoMailer();
     }
 
     /**
@@ -73,6 +80,15 @@ class AppServiceProvider extends ServiceProvider
         Scramble::configure()
             ->withDocumentTransformers(fn (OpenApi $openApi) => $authDocumentation->document($openApi))
             ->withOperationTransformers(fn (Operation $operation, RouteInfo $routeInfo) => $authDocumentation->operation($operation, $routeInfo));
+    }
+
+    /**
+     * The `brevo` mailer sends through Brevo's HTTP API (port 443), which works on hosts that block SMTP ports.
+     */
+    private function configureBrevoMailer(): void
+    {
+        Mail::extend('brevo', fn () => (new BrevoTransportFactory(null, $this->app->make(HttpClientInterface::class)))
+            ->create(new Dsn('brevo+api', 'default', (string) config('services.brevo.key'))));
     }
 
     /**

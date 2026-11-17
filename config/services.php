@@ -14,6 +14,11 @@ return [
     |
     */
 
+    'brevo' => [
+        // An API key from Brevo → SMTP & API → API keys (starts with "xkeysib-").
+        'key' => env('BREVO_API_KEY'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

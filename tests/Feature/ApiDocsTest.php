@@ -330,7 +330,7 @@ it('documents the magic link endpoints under the Auth tag', function () {
 
     expect($request['requestBody']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/RequestMagicLinkRequest')
         ->and($document['components']['schemas']['RequestMagicLinkRequest']['properties']['email'])->toMatchArray(['type' => 'string', 'format' => 'email', 'maxLength' => 255])
-        ->and(array_map('strval', array_keys($request['responses'])))->toEqualCanonicalizing(['202', '422', '429'])
+        ->and(array_map('strval', array_keys($request['responses'])))->toEqualCanonicalizing(['202', '422', '429', '503'])
         ->and($request['responses']['202']['content']['application/json']['schema']['properties']['message']['examples'])->toBe(['We have emailed you a sign-in link.'])
         ->and($verify['requestBody']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/VerifyMagicLinkRequest')
         ->and($document['components']['schemas']['VerifyMagicLinkRequest']['properties']['token'])->toMatchArray(['type' => 'string', 'minLength' => 64, 'maxLength' => 64])

@@ -47,16 +47,25 @@ The first deploy builds the image and runs all migrations against the empty data
 | `SANCTUM_STATEFUL_DOMAINS` | The storefront's host, without the scheme, e.g. `shop.example.com`. Requests from these hosts are authenticated with the session cookie and must send the CSRF header. |
 | `SESSION_DOMAIN` | The shared parent domain with a leading dot, e.g. `.example.com`, so the storefront can read the `XSRF-TOKEN` cookie. |
 
-### Email (required to sign in)
+### Email via Brevo (required to sign in)
 
-Sign-in links are sent by email, so without a working mailer nobody can sign in. With the default `log` mailer, emails are only written to `storage/logs/mail.log` inside the container and never delivered.
+Sign-in links are sent by email, so without a working mailer nobody can sign in. Production sends through **Brevo's HTTP API** (port 443, so Render's SMTP restrictions don't matter). With the default `log` mailer, emails are only written to `storage/logs/mail.log` inside the container and never delivered.
 
 | Variable | Value |
 |---|---|
-| `MAIL_MAILER` | `smtp` (or another Laravel mailer such as `postmark`, `resend` or `ses`, with that service's own variables). |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | Your SMTP provider's settings. |
-| `MAIL_FROM_ADDRESS` | The sender, e.g. `no-reply@example.com`. It must be allowed by your provider. |
+| `MAIL_MAILER` | `brevo` |
+| `BREVO_API_KEY` | A Brevo API key (starts with `xkeysib-`). See the Brevo setup below. |
+| `MAIL_FROM_ADDRESS` | The sender, e.g. `no-reply@example.com`. It must be on a domain verified in Brevo. |
 | `MAIL_FROM_NAME` | The sender name shown to users, e.g. `Eneba`. |
+
+#### Brevo setup
+
+1. **Verify your domain:** in Brevo, go to **Senders, Domains & Dedicated IPs → Domains → Add a domain**, enter the domain of `MAIL_FROM_ADDRESS` (e.g. `example.com`), and add the DNS records Brevo shows: the Brevo code, DKIM, and DMARC. Wait until Brevo marks the domain **Authenticated**. Mail from an unauthenticated domain is often rejected or lands in spam.
+2. **Create an API key:** go to **SMTP & API → API keys → Generate a new API key**. Copy it into `BREVO_API_KEY` on Render; Brevo shows it only once.
+3. **Authorized IPs:** if **Security → Authorized IPs** is turned on for your account, Brevo blocks API calls from unknown addresses. Either add your Render service's outbound IPs (Render dashboard → the service → **Connect → Outbound**) or turn the restriction off. Otherwise every send fails with `401`.
+4. **Sending limits:** Brevo's free plan sends up to 300 emails a day. Each sign-in link is one email.
+
+If Brevo rejects an email or can't be reached, `POST /api/auth/magic-link` returns `503` ("We could not send the sign-in email. Please try again."), the new link is discarded, and the user's earlier link keeps working. The error, including Brevo's reason, appears in Render's **Logs** tab.
 
 ### Already set by the image or app (override only if needed)
 
@@ -106,7 +115,7 @@ After deploying both services, sign in on the storefront with your email. Then c
 3. Opening the link makes the storefront call `POST https://api.example.com/api/auth/magic-link/verify`, which returns `200` with the user.
 4. `GET https://api.example.com/api/v1/me` returns the user, not `401`.
 
-If no email arrives, check the `MAIL_*` variables and Render's logs. If step 4 returns `401`, check `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN`. If you get `419`, the storefront is not sending the `X-XSRF-TOKEN` header. If the browser reports a CORS error, check `FRONTEND_URL`.
+If no email arrives, check `MAIL_MAILER`, `BREVO_API_KEY` and `MAIL_FROM_ADDRESS`, Render's logs, and Brevo's **Transactional → Logs**. A `503` from `POST /api/auth/magic-link` means Brevo refused or couldn't be reached; the log entry gives the reason. If step 4 returns `401`, check `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN`. If you get `419`, the storefront is not sending the `X-XSRF-TOKEN` header. If the browser reports a CORS error, check `FRONTEND_URL`.
 
 ## What changes in production
 

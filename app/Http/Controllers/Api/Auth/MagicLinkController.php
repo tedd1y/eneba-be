@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\VerifyMagicLinkRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 class MagicLinkController extends Controller
 {
@@ -21,9 +22,10 @@ class MagicLinkController extends Controller
      * Emails a single-use link to `{FRONTEND_URL}/auth/magic?token=…`, valid for 15 minutes. The response is
      * the same for every address; the account is created when the link is first used. Pass `redirect` to have
      * verify send the user back to a storefront path. Requesting a new link invalidates earlier ones.
-     * Limited to 5 per minute per IP and 3 per minute per email.
+     * Limited to 5 per minute per IP and 3 per minute per email. Returns 503 when the email could not be sent.
      *
      * @throws ThrottleRequestsException
+     * @throws ServiceUnavailableHttpException
      */
     public function store(RequestMagicLinkRequest $request, SendMagicLink $sendMagicLink): JsonResponse
     {
