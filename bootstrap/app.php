@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\RedirectIfAuthenticated;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,13 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Let the storefront authenticate API requests with Sanctum's session cookie.
         $middleware->statefulApi();
 
-        // There are no login pages here (Fortify views are off): API requests get a 401 JSON response, and
-        // anything else is sent to the storefront.
+        // There are no login pages here (sign-in is by magic link on the storefront): API requests get a 401 JSON
+        // response, and anything else is sent to the storefront.
         $middleware->redirectGuestsTo(fn () => config('app.frontend_url'));
-
-        // Guest-only routes (login, register, password reset) answer signed-in users with JSON, not a redirect.
-        $middleware->alias(['guest' => RedirectIfAuthenticated::class]);
-        $middleware->redirectUsersTo(fn () => config('app.frontend_url'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -59,7 +59,7 @@ return [
     | Frontend URL
     |--------------------------------------------------------------------------
     |
-    | The storefront's base URL, used for links sent to users (e.g. password reset) and as Fortify's home.
+    | The storefront's base URL, used for links sent to users (e.g. magic sign-in links) and redirects.
     | It is the first origin in FRONTEND_URL, which may list several, comma-separated, for CORS.
     |
     */

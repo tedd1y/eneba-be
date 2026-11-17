@@ -65,6 +65,15 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Emails sent with the `log` mailer (local development), e.g. magic sign-in links. storage/logs is
+        // git-ignored, so these never reach the repository.
+        'mail' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/mail.log'),
+            'level' => 'debug',
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

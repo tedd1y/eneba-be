@@ -317,67 +317,56 @@ it('documents GET /v1/me with UserResource and a 401 response', function () {
         ->and($user['properties']['email_verified_at']['type'])->toBe(['string', 'null']);
 });
 
-it('groups the authentication endpoints under the Auth tag', function () {
-    $paths = $this->getJson('/docs/api.json')->json('paths');
+it('documents the magic link endpoints under the Auth tag', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $paths = $document['paths'];
+    $request = $paths['/auth/magic-link']['post'];
+    $verify = $paths['/auth/magic-link/verify']['post'];
+    $logout = $paths['/auth/logout']['post'];
 
-    $authOperations = [
-        ['/login', 'post'], ['/logout', 'post'], ['/register', 'post'], ['/forgot-password', 'post'],
-        ['/reset-password', 'post'], ['/email/verification-notification', 'post'], ['/email/verify/{id}/{hash}', 'get'],
-        ['/user/confirm-password', 'post'], ['/user/confirmed-password-status', 'get'], ['/v1/me', 'get'],
-    ];
-
-    foreach ($authOperations as [$path, $method]) {
-        expect($paths[$path][$method]['tags'])->toBe(['Auth'])
-            ->and($paths[$path][$method]['summary'])->not->toBeEmpty();
+    foreach ([$request, $verify, $logout, $paths['/v1/me']['get']] as $operation) {
+        expect($operation['tags'])->toBe(['Auth']);
     }
-});
 
-it('documents the request bodies and responses of the authentication endpoints', function (string $path, array $required, array $responses) {
-    $operation = $this->getJson('/docs/api.json')->json("paths.{$path}.post");
-
-    expect($operation['requestBody']['content']['application/json']['schema']['required'])->toEqualCanonicalizing($required)
-        ->and(array_map('strval', array_keys($operation['responses'])))->toEqualCanonicalizing($responses);
-})->with([
-    'login' => ['/login', ['email', 'password'], ['200', '419', '422', '429']],
-    'register' => ['/register', ['name', 'email', 'password', 'password_confirmation'], ['200', '201', '419', '422', '429']],
-    'forgot password' => ['/forgot-password', ['email'], ['200', '419', '422', '429']],
-    'reset password' => ['/reset-password', ['token', 'email', 'password', 'password_confirmation'], ['200', '419', '422']],
-]);
-
-it('documents the responses that carry a body', function () {
-    $paths = $this->getJson('/docs/api.json')->json('paths');
-
-    expect($paths['/login']['post']['responses']['200']['content']['application/json']['schema']['properties'])->toHaveKey('two_factor')
-        ->and($paths['/forgot-password']['post']['responses']['200']['content']['application/json']['schema']['properties']['message']['examples'])
-        ->toBe(['If an account exists for that email address, we have sent a password reset link.'])
-        ->and($paths['/register']['post']['responses']['200']['content']['application/json']['schema']['properties']['message']['examples'])
-        ->toBe(['You are already logged in.'])
-        ->and($paths['/logout']['post']['responses'])->toHaveKey('204')
-        ->and($paths['/register']['post']['requestBody']['content']['application/json']['schema']['properties']['password']['description'])
-        ->toContain('10 characters');
+    expect($request['requestBody']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/RequestMagicLinkRequest')
+        ->and($document['components']['schemas']['RequestMagicLinkRequest']['properties']['email'])->toMatchArray(['type' => 'string', 'format' => 'email', 'maxLength' => 255])
+        ->and(array_map('strval', array_keys($request['responses'])))->toEqualCanonicalizing(['202', '422', '429'])
+        ->and($request['responses']['202']['content']['application/json']['schema']['properties']['message']['examples'])->toBe(['We have emailed you a sign-in link.'])
+        ->and($verify['requestBody']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/VerifyMagicLinkRequest')
+        ->and($document['components']['schemas']['VerifyMagicLinkRequest']['properties']['token'])->toMatchArray(['type' => 'string', 'minLength' => 64, 'maxLength' => 64])
+        ->and(array_map('strval', array_keys($verify['responses'])))->toEqualCanonicalizing(['200', '422', '429'])
+        ->and($verify['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/UserResource')
+        ->and(array_map('strval', array_keys($logout['responses'])))->toEqualCanonicalizing(['204', '401']);
 });
 
 it('marks which operations need a signed-in user', function () {
     $document = $this->getJson('/docs/api.json')->json();
     $paths = $document['paths'];
 
-    expect($document['components']['securitySchemes'])->toMatchArray([
-        'sanctumSession' => ['type' => 'apiKey', 'in' => 'cookie', 'name' => 'laravel-session', 'description' => $document['components']['securitySchemes']['sanctumSession']['description']],
-        'bearerToken' => ['type' => 'http', 'scheme' => 'bearer', 'description' => $document['components']['securitySchemes']['bearerToken']['description']],
-    ])
+    expect($document['components']['securitySchemes'])->toHaveKeys(['sanctumSession'])
+        ->and($document['components']['securitySchemes'])->not->toHaveKey('bearerToken')
+        ->and($document['components']['securitySchemes']['sanctumSession'])->toMatchArray(['type' => 'apiKey', 'in' => 'cookie', 'name' => 'laravel-session'])
         ->and($document)->not->toHaveKey('security')
-        ->and($paths['/v1/me']['get']['security'])->toBe([['sanctumSession' => []], ['bearerToken' => []]])
-        ->and($paths['/logout']['post']['security'])->toBe([['sanctumSession' => []]])
-        ->and($paths['/email/verification-notification']['post']['security'])->toBe([['sanctumSession' => []]]);
+        ->and($paths['/v1/me']['get']['security'])->toBe([['sanctumSession' => []]])
+        ->and($paths['/auth/logout']['post']['security'])->toBe([['sanctumSession' => []]]);
 
-    foreach ([['/login', 'post'], ['/register', 'post'], ['/v1/products', 'get'], ['/v1/orders', 'post']] as [$path, $method]) {
+    foreach ([['/auth/magic-link', 'post'], ['/auth/magic-link/verify', 'post'], ['/v1/products', 'get'], ['/v1/orders', 'post']] as [$path, $method]) {
         expect($paths[$path][$method])->not->toHaveKey('security');
     }
 });
 
-it('explains the cookie and CSRF flow in the API description', function () {
+it('no longer documents password endpoints', function () {
+    expect(array_keys($this->getJson('/docs/api.json')->json('paths')))
+        ->not->toContain('/login')
+        ->not->toContain('/register')
+        ->not->toContain('/forgot-password')
+        ->not->toContain('/reset-password');
+});
+
+it('explains the magic link, cookie and CSRF flow in the API description', function () {
     expect($this->getJson('/docs/api.json')->json('info.description'))
         ->toContain('/sanctum/csrf-cookie')
+        ->toContain('/api/auth/magic-link')
         ->toContain('X-XSRF-TOKEN')
         ->toContain('419');
 });

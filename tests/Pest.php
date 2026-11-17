@@ -62,3 +62,13 @@ function countQueries(Closure $callback): int
         DB::flushQueryLog();
     }
 }
+
+/**
+ * Send the next requests as the storefront would: from a Sanctum stateful origin, so they get a session.
+ */
+function fromStorefront(): TestCase
+{
+    config(['sanctum.stateful' => ['shop.test']]);
+
+    return test()->withHeaders(['Origin' => 'https://shop.test', 'Referer' => 'https://shop.test/']);
+}

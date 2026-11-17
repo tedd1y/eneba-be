@@ -28,5 +28,5 @@ it('restores them on rollback and drops them again', function () {
 });
 
 it('keeps the users table intact', function () {
-    expect(Schema::hasColumns('users', ['id', 'name', 'email', 'email_verified_at', 'password', 'remember_token']))->toBeTrue();
+    expect(Schema::hasColumns('users', ['id', 'name', 'email', 'email_verified_at']))->toBeTrue();
 });

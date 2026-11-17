@@ -62,11 +62,12 @@ return [
 
             ## Authentication
 
-            The storefront signs users in with Sanctum session cookies:
+            Users sign in with emailed magic links; there are no passwords. The storefront uses Sanctum session cookies:
 
             1. `GET /sanctum/csrf-cookie` (at the site root, outside `/api`) sets the `XSRF-TOKEN` and session cookies.
-            2. `POST /api/login` (or `POST /api/register`) with the `X-XSRF-TOKEN` header.
-            3. Call the API with credentials included (fetch `credentials: 'include'`, axios `withCredentials: true`).
+            2. `POST /api/auth/magic-link` with the user's email. They get a link to `{FRONTEND_URL}/auth/magic?token=…`.
+            3. That storefront page posts the token to `POST /api/auth/magic-link/verify`, which starts the session.
+            4. Call the API with credentials included (fetch `credentials: 'include'`, axios `withCredentials: true`).
 
             Requests from the storefront's origin must send the `X-XSRF-TOKEN` header on every POST, PUT, PATCH and
             DELETE, including `POST /api/v1/orders`, or they get `419`. Endpoints that need a signed-in user are marked

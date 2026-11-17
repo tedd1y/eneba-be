@@ -7,7 +7,7 @@ Render has no native PHP runtime, so the API runs as a **Docker** web service. T
 
 ## 0. Pick your domains first
 
-Users log in with **Sanctum session cookies**. Browsers only send those cookies when the storefront and the API are on the **same site**, so they need to share a parent domain:
+Users sign in with **emailed magic links** (there are no passwords), and stay signed in with **Sanctum session cookies**. Browsers only send those cookies when the storefront and the API are on the **same site**, so they need to share a parent domain:
 
 | Works | Does not work |
 |---|---|
@@ -40,16 +40,16 @@ The first deploy builds the image and runs all migrations against the empty data
 | Variable | Value |
 |---|---|
 | `APP_KEY` | Generate locally with `php artisan key:generate --show` and paste the whole `base64:…` value. |
-| `APP_URL` | The API's public URL, e.g. `https://api.example.com`. Email verification links point here. |
+| `APP_URL` | The API's public URL, e.g. `https://api.example.com`. |
 | `DB_CONNECTION` | `pgsql` |
 | `DATABASE_URL` | The database's **Internal Database URL**. |
-| `FRONTEND_URL` | The storefront origin, e.g. `https://shop.example.com`. Use commas for several, and no trailing path. It is used for CORS, as the target of password reset links (`{FRONTEND_URL}/reset-password?token=…&email=…`), and for redirects after email verification. The first origin is used for links and redirects. |
+| `FRONTEND_URL` | The storefront origin, e.g. `https://shop.example.com`. Use commas for several, and no trailing path. It is used for CORS and as the target of sign-in links (`{FRONTEND_URL}/auth/magic?token=…`). The first origin is used for links. |
 | `SANCTUM_STATEFUL_DOMAINS` | The storefront's host, without the scheme, e.g. `shop.example.com`. Requests from these hosts are authenticated with the session cookie and must send the CSRF header. |
 | `SESSION_DOMAIN` | The shared parent domain with a leading dot, e.g. `.example.com`, so the storefront can read the `XSRF-TOKEN` cookie. |
 
-### Email (required for verification and password reset)
+### Email (required to sign in)
 
-New users get a verification email and password resets are sent by email. Without a mailer, emails are only written to the log and never delivered.
+Sign-in links are sent by email, so without a working mailer nobody can sign in. With the default `log` mailer, emails are only written to `storage/logs/mail.log` inside the container and never delivered.
 
 | Variable | Value |
 |---|---|
@@ -99,13 +99,14 @@ The seeders update rows by slug or label, so running them again is safe: it refr
 
 ## 5. Check that login works
 
-After deploying both services, open the storefront and register or log in. Then confirm in the browser's developer tools:
+After deploying both services, sign in on the storefront with your email. Then confirm in the browser's developer tools:
 
 1. `GET https://api.example.com/sanctum/csrf-cookie` returns `204` and sets the `XSRF-TOKEN` and `laravel-session` cookies for `.example.com`, marked `Secure`.
-2. `POST https://api.example.com/api/login` returns `200`.
-3. `GET https://api.example.com/api/v1/me` returns the user, not `401`.
+2. `POST https://api.example.com/api/auth/magic-link` returns `202`, and the email arrives with a link to `https://shop.example.com/auth/magic?token=…`.
+3. Opening the link makes the storefront call `POST https://api.example.com/api/auth/magic-link/verify`, which returns `200` with the user.
+4. `GET https://api.example.com/api/v1/me` returns the user, not `401`.
 
-If step 3 returns `401`, check `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN`. If you get `419`, the storefront is not sending the `X-XSRF-TOKEN` header. If the browser reports a CORS error, check `FRONTEND_URL`.
+If no email arrives, check the `MAIL_*` variables and Render's logs. If step 4 returns `401`, check `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN`. If you get `419`, the storefront is not sending the `X-XSRF-TOKEN` header. If the browser reports a CORS error, check `FRONTEND_URL`.
 
 ## What changes in production
 
@@ -113,24 +114,22 @@ If step 3 returns `401`, check `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN`. 
 - **API docs are closed.** `/docs/api` and `/docs/api.json` return `403` in production. They stay open locally and on any non-production environment, such as staging with `APP_ENV=staging`.
 - **URLs and cookies use HTTPS.** Generated URLs, including pagination links, are `https://`, and session cookies are marked `Secure`. The app trusts Render's proxy headers, so rate limits apply to each client's real IP rather than the load balancer's.
 - **CORS** only allows the origins in `FRONTEND_URL`, with cookies allowed. If the frontend's URL changes, update the variable and redeploy.
-- **Passwords are checked against known breaches.** Registration and password reset reject passwords found in public data breaches, using the Have I Been Pwned API. The service needs outbound HTTPS access to `api.pwnedpasswords.com`, which Render allows by default. Only a short hash prefix is sent. Elsewhere, passwords still need at least 10 characters with upper- and lowercase letters and a number.
 
 ## Authentication endpoints
 
-Fortify provides these under `/api`. They are documented in the API spec (on non-production environments).
+Sign-in is passwordless. These are documented in the API spec (on non-production environments).
 
-| Endpoint | Rate limit |
-|---|---|
-| `POST /api/register` | 5 per minute per IP |
-| `POST /api/login` | 5 per minute per email + IP, and 10 per minute per email |
-| `POST /api/logout` | none |
-| `POST /api/forgot-password` | 5 per minute per IP, and 3 per minute per email |
-| `POST /api/reset-password` | none |
-| `POST /api/email/verification-notification` | 6 per minute |
-| `GET /api/email/verify/{id}/{hash}` | 6 per minute |
-| `GET /api/v1/me` | none |
+| Endpoint | What it does | Rate limit |
+|---|---|---|
+| `POST /api/auth/magic-link` | Emails a sign-in link; creates the account for a new email | 5 per minute per IP, and 3 per minute per email |
+| `POST /api/auth/magic-link/verify` | Exchanges the link's token for a session and returns the user | 10 per minute per IP |
+| `POST /api/auth/logout` | Ends the session | none |
+| `GET /api/v1/me` | Returns the signed-in user | none |
 
-`forgot-password` gives the same response whether or not the email is registered.
+- **Links expire after 15 minutes** and work once. Requesting a new link cancels earlier unused ones.
+- **The token is never stored:** the database keeps only its SHA-256 hash, in `magic_login_tokens`.
+- **The same response for every email:** `POST /api/auth/magic-link` answers `202` whether or not the email already had an account, so it doesn't reveal which addresses are registered.
+- **Following a link verifies the email address.**
 
 ## Notes
 
