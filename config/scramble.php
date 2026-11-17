@@ -56,7 +56,22 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => 'Public storefront API for browsing digital game products. All monetary amounts are integers in minor units (cents) with a formatted string alongside.',
+        'description' => <<<'MD'
+            Storefront API for browsing digital game products, placing guest orders and managing accounts.
+            All monetary amounts are integers in minor units (cents) with a formatted string alongside.
+
+            ## Authentication
+
+            The storefront signs users in with Sanctum session cookies:
+
+            1. `GET /sanctum/csrf-cookie` (at the site root, outside `/api`) sets the `XSRF-TOKEN` and session cookies.
+            2. `POST /api/login` (or `POST /api/register`) with the `X-XSRF-TOKEN` header.
+            3. Call the API with credentials included (fetch `credentials: 'include'`, axios `withCredentials: true`).
+
+            Requests from the storefront's origin must send the `X-XSRF-TOKEN` header on every POST, PUT, PATCH and
+            DELETE, including `POST /api/v1/orders`, or they get `419`. Endpoints that need a signed-in user are marked
+            with a security requirement and return `401` otherwise.
+            MD,
     ],
 
     'ui' => [

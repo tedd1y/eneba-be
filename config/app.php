@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | The storefront's base URL, used for links sent to users (e.g. password reset) and as Fortify's home.
+    | It is the first origin in FRONTEND_URL, which may list several, comma-separated, for CORS.
+    |
+    */
+
+    'frontend_url' => rtrim(trim(explode(',', (string) env('FRONTEND_URL', ''))[0]), '/') ?: env('APP_URL', 'http://localhost'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

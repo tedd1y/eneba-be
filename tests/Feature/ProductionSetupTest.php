@@ -186,6 +186,35 @@ describe('CORS', function () {
     ]);
 });
 
+describe('web routes', function () {
+    it('serve no home page (the backend is API-only)', function () {
+        $this->get('/')->assertNotFound();
+    });
+});
+
+describe('session cookie', function () {
+    it('is secure in production by default', function () {
+        expect(configWithEnv('session.php', ['APP_ENV' => 'production'])['secure'])->toBeTrue();
+    });
+
+    it('can be switched off explicitly in production', function () {
+        expect(configWithEnv('session.php', ['APP_ENV' => 'production', 'SESSION_SECURE_COOKIE' => 'false'])['secure'])->toBeFalse();
+    });
+
+    it('is not forced outside production', function () {
+        expect(configWithEnv('session.php', ['APP_ENV' => 'local'])['secure'])->toBeFalse();
+    });
+
+    it('is sent with the Secure flag when secure', function () {
+        config(['session.secure' => true]);
+
+        $cookies = collect($this->get('/sanctum/csrf-cookie')->headers->getCookies())->keyBy->getName();
+
+        expect($cookies['laravel-session']->isSecure())->toBeTrue()
+            ->and($cookies['XSRF-TOKEN']->isSecure())->toBeTrue();
+    });
+});
+
 describe('database URL', function () {
     it('configures the pgsql connection from DATABASE_URL', function () {
         $connection = configWithEnv('database.php', ['DATABASE_URL' => 'postgresql://shop:secret@dpg-abc123-a/eneba_prod'])['connections']['pgsql'];

@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
@@ -36,6 +36,10 @@ return [
 
     'max_age' => 3600,
 
-    'supports_credentials' => false,
+    /*
+     * Allow cookies, so the storefront can log in with Sanctum's session cookie. The frontend must send
+     * requests with credentials (fetch `credentials: 'include'`, axios `withCredentials: true`).
+     */
+    'supports_credentials' => true,
 
 ];

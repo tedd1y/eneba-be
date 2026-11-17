@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\GenreController;
 use App\Http\Controllers\Api\V1\HomeGalleryController;
 use App\Http\Controllers\Api\V1\OrderController;
@@ -10,6 +11,9 @@ use App\Http\Controllers\Api\V1\SideMenuController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('v1.')->group(function () {
+    // Account
+    Route::get('me', [CurrentUserController::class, 'show'])->middleware('auth:sanctum')->name('me.show');
+
     // Store
     Route::get('products/filters', [ProductFilterController::class, 'index'])->name('products.filters.index');
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);

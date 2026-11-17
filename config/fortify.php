@@ -73,7 +73,8 @@ return [
     |
     */
 
-    'home' => '/home',
+    // The storefront (see app.frontend_url).
+    'home' => config('app.frontend_url'),
 
     /*
     |--------------------------------------------------------------------------
@@ -86,7 +87,7 @@ return [
     |
     */
 
-    'prefix' => '',
+    'prefix' => 'api',
 
     'domain' => null,
 
@@ -101,7 +102,8 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // `throttle:auth` limits registration and password reset requests; see FortifyServiceProvider.
+    'middleware' => ['web', 'throttle:auth'],
 
     /*
     |--------------------------------------------------------------------------
@@ -131,7 +133,7 @@ return [
     |
     */
 
-    'views' => true,
+    'views' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -164,17 +166,7 @@ return [
     'features' => [
         Features::registration(),
         Features::resetPasswords(),
-        // Features::emailVerification(),
-        Features::updateProfileInformation(),
-        Features::updatePasswords(),
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-            // 'window' => 0,
-        ]),
-        Features::passkeys([
-            'confirmPassword' => true,
-        ]),
+        Features::emailVerification(),
     ],
 
 ];

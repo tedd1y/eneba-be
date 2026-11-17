@@ -303,3 +303,81 @@ it('documents the genres endpoint as an unpaginated list of GenreResource', func
         ->and($genre['properties']['icon']['type'])->toBe(['string', 'null'])
         ->and($genre['properties']['is_featured']['type'])->toBe('boolean');
 });
+
+it('documents GET /v1/me with UserResource and a 401 response', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $operation = $document['paths']['/v1/me']['get'];
+    $user = $document['components']['schemas']['UserResource'];
+
+    expect($operation['operationId'])->toBe('v1.me.show')
+        ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/UserResource')
+        ->and($operation['responses'])->toHaveKey('401')
+        ->and($user['required'])->toEqualCanonicalizing(['id', 'name', 'email', 'email_verified_at'])
+        ->and(array_keys($user['properties']))->toBe(['id', 'name', 'email', 'email_verified_at'])
+        ->and($user['properties']['email_verified_at']['type'])->toBe(['string', 'null']);
+});
+
+it('groups the authentication endpoints under the Auth tag', function () {
+    $paths = $this->getJson('/docs/api.json')->json('paths');
+
+    $authOperations = [
+        ['/login', 'post'], ['/logout', 'post'], ['/register', 'post'], ['/forgot-password', 'post'],
+        ['/reset-password', 'post'], ['/email/verification-notification', 'post'], ['/email/verify/{id}/{hash}', 'get'],
+        ['/user/confirm-password', 'post'], ['/user/confirmed-password-status', 'get'], ['/v1/me', 'get'],
+    ];
+
+    foreach ($authOperations as [$path, $method]) {
+        expect($paths[$path][$method]['tags'])->toBe(['Auth'])
+            ->and($paths[$path][$method]['summary'])->not->toBeEmpty();
+    }
+});
+
+it('documents the request bodies and responses of the authentication endpoints', function (string $path, array $required, array $responses) {
+    $operation = $this->getJson('/docs/api.json')->json("paths.{$path}.post");
+
+    expect($operation['requestBody']['content']['application/json']['schema']['required'])->toEqualCanonicalizing($required)
+        ->and(array_map('strval', array_keys($operation['responses'])))->toEqualCanonicalizing($responses);
+})->with([
+    'login' => ['/login', ['email', 'password'], ['200', '419', '422', '429']],
+    'register' => ['/register', ['name', 'email', 'password', 'password_confirmation'], ['200', '201', '419', '422', '429']],
+    'forgot password' => ['/forgot-password', ['email'], ['200', '419', '422', '429']],
+    'reset password' => ['/reset-password', ['token', 'email', 'password', 'password_confirmation'], ['200', '419', '422']],
+]);
+
+it('documents the responses that carry a body', function () {
+    $paths = $this->getJson('/docs/api.json')->json('paths');
+
+    expect($paths['/login']['post']['responses']['200']['content']['application/json']['schema']['properties'])->toHaveKey('two_factor')
+        ->and($paths['/forgot-password']['post']['responses']['200']['content']['application/json']['schema']['properties']['message']['examples'])
+        ->toBe(['If an account exists for that email address, we have sent a password reset link.'])
+        ->and($paths['/register']['post']['responses']['200']['content']['application/json']['schema']['properties']['message']['examples'])
+        ->toBe(['You are already logged in.'])
+        ->and($paths['/logout']['post']['responses'])->toHaveKey('204')
+        ->and($paths['/register']['post']['requestBody']['content']['application/json']['schema']['properties']['password']['description'])
+        ->toContain('10 characters');
+});
+
+it('marks which operations need a signed-in user', function () {
+    $document = $this->getJson('/docs/api.json')->json();
+    $paths = $document['paths'];
+
+    expect($document['components']['securitySchemes'])->toMatchArray([
+        'sanctumSession' => ['type' => 'apiKey', 'in' => 'cookie', 'name' => 'laravel-session', 'description' => $document['components']['securitySchemes']['sanctumSession']['description']],
+        'bearerToken' => ['type' => 'http', 'scheme' => 'bearer', 'description' => $document['components']['securitySchemes']['bearerToken']['description']],
+    ])
+        ->and($document)->not->toHaveKey('security')
+        ->and($paths['/v1/me']['get']['security'])->toBe([['sanctumSession' => []], ['bearerToken' => []]])
+        ->and($paths['/logout']['post']['security'])->toBe([['sanctumSession' => []]])
+        ->and($paths['/email/verification-notification']['post']['security'])->toBe([['sanctumSession' => []]]);
+
+    foreach ([['/login', 'post'], ['/register', 'post'], ['/v1/products', 'get'], ['/v1/orders', 'post']] as [$path, $method]) {
+        expect($paths[$path][$method])->not->toHaveKey('security');
+    }
+});
+
+it('explains the cookie and CSRF flow in the API description', function () {
+    expect($this->getJson('/docs/api.json')->json('info.description'))
+        ->toContain('/sanctum/csrf-cookie')
+        ->toContain('X-XSRF-TOKEN')
+        ->toContain('419');
+});
