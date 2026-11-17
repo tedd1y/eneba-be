@@ -8,13 +8,13 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
- * A single-use, short-lived sign-in link. Only the SHA-256 hash of the token is stored.
+ * A single-use, short-lived sign-in link for an email address. Only the SHA-256 hash of the token is stored;
+ * the account is created or found when the link is used.
  */
-#[Fillable(['user_id', 'token_hash', 'expires_at', 'used_at'])]
+#[Fillable(['email', 'token_hash', 'redirect', 'expires_at', 'used_at'])]
 class MagicLoginToken extends Model
 {
     /** @use HasFactory<MagicLoginTokenFactory> */
@@ -29,6 +29,11 @@ class MagicLoginToken extends Model
      * Length of the plain token sent in the link.
      */
     public const TOKEN_LENGTH = 64;
+
+    /**
+     * Where the storefront goes after signing in when no redirect was requested.
+     */
+    public const DEFAULT_REDIRECT = '/';
 
     /**
      * Get the attributes that should be cast.
@@ -60,16 +65,6 @@ class MagicLoginToken extends Model
     }
 
     /**
-     * User the link signs in.
-     *
-     * @return BelongsTo<User, $this>
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
      * Scope a query to tokens that can still be used: not used yet and not expired.
      */
     #[Scope]
@@ -77,6 +72,15 @@ class MagicLoginToken extends Model
     {
         $query->whereNull($this->qualifyColumn('used_at'))
             ->where($this->qualifyColumn('expires_at'), '>', now());
+    }
+
+    /**
+     * Scope a query to links sent to the given email address.
+     */
+    #[Scope]
+    protected function forEmail(Builder $query, string $email): void
+    {
+        $query->where($this->qualifyColumn('email'), $email);
     }
 
     /**

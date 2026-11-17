@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\MagicLoginToken;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,8 +18,9 @@ class MagicLoginTokenFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
+            'email' => fake()->unique()->safeEmail(),
             'token_hash' => MagicLoginToken::hashToken(MagicLoginToken::generateToken()),
+            'redirect' => null,
             'expires_at' => now()->addMinutes(MagicLoginToken::LIFETIME_MINUTES),
             'used_at' => null,
         ];

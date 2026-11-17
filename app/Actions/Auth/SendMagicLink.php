@@ -4,7 +4,6 @@ namespace App\Actions\Auth;
 
 use App\Mail\MagicLinkMail;
 use App\Models\MagicLoginToken;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -12,30 +11,31 @@ use Illuminate\Support\Str;
 class SendMagicLink
 {
     /**
-     * Email a single-use sign-in link to the address, creating the account if it is new.
+     * Email a single-use sign-in link to the address. No account is created yet: that happens when the link is
+     * used, so nobody gets an account for an address they don't control.
      *
-     * Requesting a new link invalidates any earlier unused links for the same user. Every address gets the same
-     * treatment, so the response never reveals whether an account already existed.
+     * Requesting a new link invalidates earlier unused links for the same address. Every address is treated the
+     * same, so the response never reveals whether an account exists.
+     *
+     * @param  string|null  $redirect  Storefront path to open after signing in, e.g. `/cart`.
      */
-    public function handle(string $email): void
+    public function handle(string $email, ?string $redirect = null): void
     {
         $email = Str::lower(trim($email));
         $token = MagicLoginToken::generateToken();
 
-        $user = DB::transaction(function () use ($email, $token) {
-            $user = User::query()->createOrFirst(['email' => $email], ['name' => Str::before($email, '@')]);
+        DB::transaction(function () use ($email, $token, $redirect) {
+            MagicLoginToken::query()->forEmail($email)->whereNull('used_at')->delete();
 
-            $user->magicLoginTokens()->whereNull('used_at')->delete();
-
-            $user->magicLoginTokens()->create([
+            MagicLoginToken::query()->create([
+                'email' => $email,
                 'token_hash' => MagicLoginToken::hashToken($token),
+                'redirect' => $redirect,
                 'expires_at' => now()->addMinutes(MagicLoginToken::LIFETIME_MINUTES),
             ]);
-
-            return $user;
         });
 
-        Mail::to($user->email)->send(new MagicLinkMail($this->linkFor($token)));
+        Mail::to($email)->send(new MagicLinkMail($this->linkFor($token)));
     }
 
     /**

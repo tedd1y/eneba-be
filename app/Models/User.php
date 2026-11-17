@@ -4,15 +4,17 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email'])]
 /**
  * A storefront account. There are no passwords: users sign in with emailed magic links (see MagicLoginToken).
+ * The remember token backs the optional "remember me" cookie.
  */
+#[Fillable(['name', 'email'])]
+#[Hidden(['remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -31,12 +33,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Magic sign-in links issued to this user.
-     *
-     * @return HasMany<MagicLoginToken, $this>
+     * Users have no password. Laravel ties "remember me" cookies to the password hash and ignores a cookie when
+     * this is not a string, so an empty string keeps remember-me working.
      */
-    public function magicLoginTokens(): HasMany
+    public function getAuthPassword(): string
     {
-        return $this->hasMany(MagicLoginToken::class);
+        return '';
     }
 }

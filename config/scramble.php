@@ -66,7 +66,9 @@ return [
 
             1. `GET /sanctum/csrf-cookie` (at the site root, outside `/api`) sets the `XSRF-TOKEN` and session cookies.
             2. `POST /api/auth/magic-link` with the user's email. They get a link to `{FRONTEND_URL}/auth/magic?token=…`.
-            3. That storefront page posts the token to `POST /api/auth/magic-link/verify`, which starts the session.
+            3. That storefront page posts the token to `POST /api/auth/magic-link/verify`, which starts the session
+               (creating the account on first sign-in) and returns the user and the `redirect` path to open.
+               Send `remember: true` to stay signed in after the session expires.
             4. Call the API with credentials included (fetch `credentials: 'include'`, axios `withCredentials: true`).
 
             Requests from the storefront's origin must send the `X-XSRF-TOKEN` header on every POST, PUT, PATCH and

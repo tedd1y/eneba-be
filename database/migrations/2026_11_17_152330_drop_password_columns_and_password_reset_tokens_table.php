@@ -5,7 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Users sign in with magic links only, so passwords, remember-me tokens and password reset tokens are gone.
+ * Users sign in with magic links only, so passwords and password reset tokens are gone. The remember token
+ * stays: it backs the optional "remember me" cookie.
  */
 return new class extends Migration
 {
@@ -17,8 +18,15 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
 
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['password', 'remember_token']);
+            $table->dropColumn('password');
         });
+
+        // An earlier draft of this migration also dropped the remember token; restore it where that ran.
+        if (! Schema::hasColumn('users', 'remember_token')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->rememberToken();
+            });
+        }
     }
 
     /**
@@ -28,7 +36,6 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('password')->default('');
-            $table->rememberToken();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

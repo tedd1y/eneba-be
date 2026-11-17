@@ -28,6 +28,12 @@ class VerifyMagicLinkRequest extends FormRequest
              * The `token` query parameter from the emailed link.
              */
             'token' => ['required', 'string', 'size:'.MagicLoginToken::TOKEN_LENGTH],
+            /**
+             * Keep the user signed in after the session expires, with a long-lived "remember me" cookie.
+             *
+             * @default false
+             */
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 }

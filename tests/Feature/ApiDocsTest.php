@@ -336,6 +336,11 @@ it('documents the magic link endpoints under the Auth tag', function () {
         ->and($document['components']['schemas']['VerifyMagicLinkRequest']['properties']['token'])->toMatchArray(['type' => 'string', 'minLength' => 64, 'maxLength' => 64])
         ->and(array_map('strval', array_keys($verify['responses'])))->toEqualCanonicalizing(['200', '422', '429'])
         ->and($verify['responses']['200']['content']['application/json']['schema']['properties']['data']['$ref'])->toBe('#/components/schemas/UserResource')
+        ->and($verify['responses']['200']['content']['application/json']['schema']['properties']['redirect']['type'])->toBe('string')
+        ->and($verify['responses']['200']['content']['application/json']['schema']['required'])->toEqualCanonicalizing(['data', 'redirect'])
+        ->and($document['components']['schemas']['RequestMagicLinkRequest']['properties']['redirect'])->toMatchArray(['type' => ['string', 'null'], 'maxLength' => 2048])
+        ->and($document['components']['schemas']['RequestMagicLinkRequest']['properties']['redirect'])->not->toHaveKey('pattern')
+        ->and($document['components']['schemas']['VerifyMagicLinkRequest']['properties']['remember'])->toMatchArray(['type' => 'boolean', 'default' => false])
         ->and(array_map('strval', array_keys($logout['responses'])))->toEqualCanonicalizing(['204', '401']);
 });
 

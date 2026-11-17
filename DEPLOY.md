@@ -121,15 +121,17 @@ Sign-in is passwordless. These are documented in the API spec (on non-production
 
 | Endpoint | What it does | Rate limit |
 |---|---|---|
-| `POST /api/auth/magic-link` | Emails a sign-in link; creates the account for a new email | 5 per minute per IP, and 3 per minute per email |
-| `POST /api/auth/magic-link/verify` | Exchanges the link's token for a session and returns the user | 10 per minute per IP |
+| `POST /api/auth/magic-link` | Emails a sign-in link. Optional `redirect`: a storefront path such as `/cart` | 5 per minute per IP, and 3 per minute per email |
+| `POST /api/auth/magic-link/verify` | Exchanges the link's token for a session; creates the account on first sign-in; returns the user and the `redirect`. Optional `remember: true` | 10 per minute per IP |
 | `POST /api/auth/logout` | Ends the session | none |
 | `GET /api/v1/me` | Returns the signed-in user | none |
 
 - **Links expire after 15 minutes** and work once. Requesting a new link cancels earlier unused ones.
-- **The token is never stored:** the database keeps only its SHA-256 hash, in `magic_login_tokens`.
-- **The same response for every email:** `POST /api/auth/magic-link` answers `202` whether or not the email already had an account, so it doesn't reveal which addresses are registered.
+- **The token is never stored:** `magic_login_tokens` keeps only its SHA-256 hash, plus the email address and redirect.
+- **Accounts are created on first sign-in,** not when a link is requested, so nobody gets an account for an address they don't control. `POST /api/auth/magic-link` answers `202` for every address, so it doesn't reveal which are registered.
 - **Following a link verifies the email address.**
+- **Redirects stay on the storefront:** `redirect` must be a path starting with a single `/`. The storefront appends it to its own origin.
+- **Remember me:** without `remember`, users stay signed in until the session expires (`SESSION_LIFETIME`, 120 minutes of inactivity by default). With `remember: true`, a long-lived cookie keeps them signed in until they log out.
 
 ## Notes
 
